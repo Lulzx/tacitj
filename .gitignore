@@ -1,0 +1,25 @@
+# Build artifacts
+*.ijx
+*.ijb
+bin/
+obj/
+
+# J runtime
+*.jdebug
+jbreak
+
+# Editor / OS
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+*.iml
+
+# Generated reports
+reports/
+bench/out/
+
+# Agent / IDE config (may contain API keys / local paths)
+opencode.json
+.claude/
