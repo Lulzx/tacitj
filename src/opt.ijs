@@ -74,6 +74,8 @@ optPass =: 3 : 0
     optTrain2 ir
   elseif. op = IR_TRAIN3 do.
     optTrain3 ir
+  elseif. op = IR_TRAIN do.
+    ir
   elseif. op = IR_ADVR do.
     optAdv ir
   elseif. op = IR_CONJ do.
@@ -99,6 +101,7 @@ optChildren =: 3 : 0
   if. op = IR_CALL do. optChildrenCall ir return. end.
   if. op = IR_TRAIN2 do. optChildrenTrain2 ir return. end.
   if. op = IR_TRAIN3 do. optChildrenTrain3 ir return. end.
+  if. op = IR_TRAIN  do. optChildrenTrain  ir return. end.
   if. op = IR_ADVR do. optChildrenAdv ir return. end.
   if. op = IR_CONJ do. optChildrenConj ir return. end.
   if. op = IR_ASSN do. optChildrenAssn ir return. end.
@@ -152,6 +155,17 @@ optChildrenTrain3 =: 3 : 0
   if. -. 32 = 3!:0 c1 do. c1 =. < c1 end.
   if. -. 32 = 3!:0 c2 do. c2 =. < c2 end.
   irTrain3 (c0 ; c1 ; c2)
+)
+
+NB. optChildrenTrain: rebuild a generic IR_TRAIN with optimized children.
+NB. The generic train has no rewrite rule of its own (yet); this just
+NB. recurses so constant folding / propagation can fire inside it.
+optChildrenTrain =: 3 : 0
+  ir =. y
+  args =. irArgs ir
+  if. 0 = # args do. ir return. end.
+  newKids =. optStmts args
+  irTrainN newKids
 )
 
 NB. optChildrenAdv: rebuild IR_ADVR with optimized children.
@@ -443,6 +457,16 @@ NB. --- Equality & utility -----------------------------------
 NB. irEqual: structural equality of two IR nodes.
 NB. y = boxed pair (ir1 ; ir2)
 NB. Result = 0 or 1
+NB.
+NB. We compare the unparsed J source rather than the raw boxed
+NB. args, because the IR constructors use `;` (link) which boxes
+NB. elements inconsistently (e.g. the last child of a 3-train ends
+NB. up at a different box depth than the first two). A raw `+:`
+NB. (match) on irArgs would therefore report two semantically
+NB. identical IRs as unequal, making `opt` loop until `unboxIr`'s
+NB. depth limit overflows. Unparsing normalises the boxing, so this
+NB. is a sound fixed-point test (and matches what the pipeline
+NB. actually emits).
 irEqual =: 3 : 0
   'a b' =. y
   aEmpty =. a -: a:
@@ -452,8 +476,7 @@ irEqual =: 3 : 0
     0 return.
   end.
   if. bEmpty do. 0 return. end.
-  if. -. (irOp a) = (irOp b) do. 0 return. end.
-  (irArgs a) -: irArgs b
+  (unparseIr a) -: unparseIr b
 )
 
 NB. resetOptEnv: clear the env. Tests call this between
@@ -510,6 +533,7 @@ opCost =: 3 : 0
   elseif. op = IR_CALL   do. 3
   elseif. op = IR_TRAIN2 do. 2
   elseif. op = IR_TRAIN3 do. 2
+  elseif. op = IR_TRAIN  do. 2
   elseif. op = IR_ADVR   do. 3
   elseif. op = IR_CONJ   do. 4
   elseif. op = IR_ASSN   do. 2

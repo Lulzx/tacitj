@@ -34,9 +34,11 @@ IR_CONJ   =: 6    NB. conjunction: u n v  (e.g., f @ g)
 IR_ASSN   =: 7    NB. assignment: name =: expr
 IR_SEQ    =: 8    NB. sequence of statements
 IR_PROG   =: 9    NB. top-level program: list of sentences
+IR_TRAIN  =: 10   NB. generic N-train (N>=4): unparses to ( c0 c1 ... )
+                 NB.   J's own parser handles train reduction on round-trip.
 
 NB. Opcode labels (for diagnostics)
-IR_LABELS =: 'LIT';'REF';'CALL';'TRAIN2';'TRAIN3';'ADVR';'CONJ';'ASSN';'SEQ';'PROG'
+IR_LABELS =: 'LIT';'REF';'CALL';'TRAIN2';'TRAIN3';'ADVR';'CONJ';'ASSN';'SEQ';'PROG';'TRAIN'
 
 NB. --- IR constructors -------------------------------------
 
@@ -196,6 +198,26 @@ irTrain3 =: 3 : 0
   < ir
 )
 
+NB. irTrainN: build a generic IR_TRAIN from a boxed vector of child IRs.
+NB. y = boxed vector of IR nodes (the train's components, in order).
+NB. Used for N>=4 trains (and N=2/3 may also use this as a uniform path).
+NB. Unparses to ( c0 c1 ... cN-1 ) so J's parser recovers train semantics.
+irTrainN =: 3 : 0
+  kids =. y
+  if. 0 = # kids do. < (<IR_TRAIN) , (<a:) , (<a:) return. end.
+  NB. Ensure each child is boxed.
+  boxed =. 0 $ a:
+  for_i. i. # kids do.
+    c =. i { kids
+    if. -. 32 = 3!:0 c do. c =. < c end.
+    boxed =. boxed , <c
+  end.
+  slot0 =. < IR_TRAIN
+  slot1 =. < boxed
+  slot2 =. < a:
+  < (slot0 , slot1 , slot2)
+)
+
 NB. irCall: build an IR_CALL.
 NB. y = boxed vector of (verb ; lhs-or-a: ; rhs) - may be assembled with `;`
 irCall =: 3 : 0
@@ -278,6 +300,69 @@ irProg =: 3 : 0
   < ir
 )
 
+NB. --- Robust AST accessors -----------------------------------
+NB. The parser's AST has irregular boxing (scalar-boxed 2-boxes,
+NB. double-boxed leaves inside trains, EXPR-outer wrapping an
+NB. EXPR-inner via a 1-element ravel list). These accessors peel
+NB. boxes defensively so the lowerer does not have to special-case
+NB. every level of nesting.
+
+NB. openToBox: open scalar boxes (rank-0 boxes) until the result is
+NB. not a scalar box. A 2-box (a;b) has rank 1 so it is returned as-is.
+NB. y = any value. Result = the first non-scalar-box value.
+openToBox =: 3 : 0
+  v =. y
+  while. (32 = 3!:0 v) *. (0 = #$ v) do.
+    v =. > v
+  end.
+  v
+)
+
+NB. astTagR: robust tag extraction. y = AST node (any boxing).
+NB. Result = the integer tag (AST_*), or _1 if not a 2-box.
+astTagR =: 3 : 0
+  v =. openToBox y
+  if. 2 ~: # v do. _1 return. end.
+  openToBox 0 { v
+)
+
+NB. astKidsR: robust payload (slot1) extraction. y = AST node.
+NB. Result = slot1 content with scalar boxes peeled.
+NB.   - SENT  -> inner 2-box (EXPR-outer or ASSIGN)
+NB.   - EXPR  -> grouped children vector (or, for EXPR-outer, the
+NB.              1-element ravel list wrapping EXPR-inner)
+NB.   - TRAIN -> leaves vector
+NB.   - ASSIGN -> the [name ; <expr>] 2-box
+NB.   - leaf  -> the value (number / char vec / name string)
+astKidsR =: 3 : 0
+  v =. openToBox y
+  if. 2 ~: # v do. a: return. end.
+  openToBox 1 { v
+)
+
+NB. astValR: robust value extraction for a leaf node. Same as astKidsR
+NB. but named for clarity at leaf call sites.
+astValR =: astKidsR
+
+NB. groupedOf: descend EXPR wrappers and return the grouped children
+NB. vector of the innermost EXPR. If the node is not an EXPR, return it
+NB. as-is (so callers can lowerNode it).
+NB. y = an EXPR node (any boxing). Result = the grouped children vector
+NB. (a boxed list of TRAIN/leaf nodes), or the node itself if non-EXPR.
+groupedOf =: 3 : 0
+  node =. y
+  while. (astTagR node) = AST_EXPR do.
+    kids =. astKidsR node
+    if. (1 = # kids) *. (AST_EXPR = astTagR 0 { kids) do.
+      NB. EXPR-outer wraps EXPR-inner via a 1-element list: descend.
+      node =. 0 { kids
+    else.
+      kids return.
+    end.
+  end.
+  node
+)
+
 NB. --- Lowering: AST -> IR ---------------------------------
 
 NB. lowerAst: convert a TacitJ AST (output of parseProgram) into
@@ -308,189 +393,77 @@ lowerSentList =: 3 : 0
 )
 
 NB. lowerSent: lower a single sentence AST to an IR node.
-NB. y = AST_SENT node (1-box wrapping 2-box)
-NB. Result = IR node (boxed triple)
+NB. y = AST_SENT node (any boxing; robust accessors peel it).
+NB. Result = IR node (IR_ASSN for an assignment, the expr IR for a
+NB. bare expression, or an empty IR_SEQ for an unknown shape).
 lowerSent =: 3 : 0
-  sent =. y
-  NB. SENT's payload is the inner node (a 2-box of (tag, inner-payload)).
-  inner =. astPayload sent
-  innerTag =. > 0 { > inner
-  if. innerTag = AST_ASSIGN do.
-    NB. ASSIGN payload: (nameAst ; exprAst)
-    inner2 =. > 1 { > inner
-    nameAst =. > 0 { inner2
-    exprAst =. > 1 { inner2
-    nameVal =. > 1 { > nameAst
-    exprIr  =. lowerExpr exprAst
-    irAssn (<(<irRef (>nameVal)) , (<exprIr))
-  elseif. innerTag = AST_EXPR do.
-    NB. EXPR payload: a 2-element 2-box of (EXPR-tag, children-payload).
-    NB. children-payload is itself a 1-box wrapping the children vector.
-    NB. We use ,"1 (cat on axis 1) to ravel the 1x2 matrix to a list.
-    innerExpr =. > 1 { > inner
-    kids =. > 1 {"1 innerExpr
-    lowerExpr kids
+  inner =. astKidsR y                       NB. inner 2-box (EXPR-outer or ASSIGN)
+  tg =. astTagR inner
+  if. tg = AST_ASSIGN do.
+    payload =. astKidsR inner                NB. [name-leaf ; <expr-EXPR>]
+    name =. astValR 0 { payload              NB. the name string
+    exprIr =. lowerExprNode 1 { payload      NB. <EXPR-inner> (scalar-boxed)
+    irAssn ((<irRef name) , <exprIr)
+  elseif. tg = AST_EXPR do.
+    lowerExprNode inner
   else.
-    NB. Unknown: return empty
-    irSeq (0 $ a:)
+    irSeq 0 $ a:
   end.
 )
 
-NB. lowerExpr: lower a list of AST children to a single IR.
-NB. y = boxed vector of AST child nodes (output of groupTrains
-NB.     and parseExpr, but opened one level)
+NB. lowerExprNode: lower an EXPR node (any boxing) to an IR.
+NB. Descends EXPR-outer -> EXPR-inner wrappers via `groupedOf`, then
+NB. lowers the innermost grouped children vector with `lowerSeq`.
+lowerExprNode =: 3 : 0
+  lowerSeq groupedOf y
+)
+
+NB. lowerSeq: lower a boxed vector of AST nodes (TRAIN children or
+NB. grouped expression children) into a single IR.
+NB. y = boxed vector of AST nodes (each any boxing).
+NB. Result = IR node.
 NB.
-NB. We apply J's right-to-left evaluation: a flat sequence
-NB.   t1 v1 t2 v2 t3 ...
-NB. is folded as
-NB.   t1 v1 (t2 v2 (t3 ...))
-NB. A 2-train (hook) children = [u ; v] becomes IR_TRAIN2.
-NB. A 3-train (fork) children = [u ; v ; w] becomes IR_TRAIN3.
-lowerExpr =: 3 : 0
-  children =. y
-  nc =. # children
-  if. nc = 0 do. a: return. end.
-  if. nc = 1 do.
-    NB. Single child. If the child is itself an EXPR (parser
-    NB. nesting), unwrap it recursively by extracting the
-    NB. inner EXPR's children vector.
-    head =. > 0 { children
-    if. (astTag head) = AST_EXPR do.
-      innerPayload =. astPayload head
-      lowerExpr (> 1 { > innerPayload)
-      return.
-    end.
-    lowerNode head
-    return.
+NB. The flat node sequence is emitted as a parenthesised train so
+NB. that J's own parser recovers the correct semantics on round-trip
+NB. (verified for bare expressions, value assignments, and tacit-train
+NB. definitions). N=2 -> IR_TRAIN2, N=3 -> IR_TRAIN3, N>=4 -> IR_TRAIN
+NB. (generic), N=1 -> the single child's IR.
+lowerSeq =: 3 : 0
+  nodes =. y
+  n =. # nodes
+  if. n = 0 do. a: return. end.
+  irs =. 0 $ a:
+  i =. 0
+  while. i < n do.
+    irs =. irs , <lowerNode i { nodes
+    i =. >: i
   end.
-  if. nc = 2 do. lowerExpr2 children return. end.
-  if. nc = 3 do. lowerExpr3 children return. end.
-  lowerFold children
+  if. n = 1 do. > 0 { irs return. end.
+  if. n = 2 do. irTrain2 ((0 { irs) ; (1 { irs)) return. end.
+  if. n = 3 do. irTrain3 ((0 { irs) ; (1 { irs) ; (2 { irs)) return. end.
+  irTrainN irs
 )
 
-NB. lowerExpr2: lower a 2-element child list to a 2-train or
-NB. monadic call.
-NB. y = boxed vector of 2 AST nodes
-lowerExpr2 =: 3 : 0
-  a =. > 0 { y
-  b =. > 1 { y
-  if. isAstVerb b do.
-    irCall3 ((irLitVerb b) ; a: ; (lowerNode a))
-  elseif. isAstVerb a do.
-    irCall3 ((irLitVerb a) ; a: ; (lowerNode b))
-  else.
-    irTrain2 (<(lowerNode a) ; <(lowerNode b))
-  end.
-)
-
-NB. lowerExpr3: lower a 3-element child list. If all three are
-NB. verbs, this is a 3-train (fork); otherwise it's a
-NB. right-to-left dyadic fold.
-NB. y = boxed vector of 3 AST nodes
-lowerExpr3 =: 3 : 0
-  a =. > 0 { y
-  b =. > 1 { y
-  c =. > 2 { y
-  if. (isAstVerb a) *. (isAstVerb b) *. (isAstVerb c) do.
-    irTrain3 (<(lowerNode a) ; <(lowerNode b) ; <(lowerNode c))
-  else.
-    irCall3 ((irLitVerb a) ; (lowerNode b) ; (lowerNode c))
-  end.
-)
-
-NB. lowerTwo: lower a pair (verb ; arg) where verb is the verb char
-NB. AST and arg is a noun AST. Result is a partial IR for the
-NB. sub-expression.
-NB. y = boxed pair (verbAst ; nounAst)
-lowerTwo =: 3 : 0
-  'verbAst nounAst' =. y
-  if. isAstVerb verbAst do.
-    irCall3 ((irLitVerb verbAst) ; a: ; (lowerNode nounAst))
-  else.
-    lowerNode nounAst
-  end.
-)
-
-NB. lowerFold: right-to-left fold of a 4+ element child list.
-NB. y = boxed vector of AST children, length >= 4
-NB. The pattern is interpreted as
-NB.   child[0] verb[1] child[2] verb[3] child[4] ...
-NB. where verbs are at odd positions and nouns/exprs are at even
-NB. positions. Result is the IR for the whole expression.
-lowerFold =: 3 : 0
-  children =. y
-  NB. The rightmost child is always a noun/expr.
-  right =. lowerNode > ({. _1) { children
-  NB. Then walk back: pair each verb with the accumulated rhs.
-  i =. <: nc =. # children
-  while. i > 0 do.
-    NB. i is the verb position (1, 3, 5, ...). Its left arg is
-    NB. the noun at position i-1.
-    verbAst =. i { children
-    if. isAstVerb verbAst do.
-      NB. Dyadic: (lhs) verb (rhs)
-      lhs =. lowerNode > (i - 1) { children
-      right =. irCall3 ((irLitVerb verbAst) ; lhs ; right)
-    else.
-      NB. Verb position is not a verb: treat as part of the
-      NB. left-hand expression. This is rare in J (e.g., adverbs
-      NB. at odd positions); for Stage 0 we just keep folding.
-      right =. irCall3 ((irLitVerb verbAst) ; (lowerNode > (i-1) { children) ; right)
-    end.
-    i =. i - 2
-  end.
-  right
-)
-
-NB. lowerNode: lower a single AST node (one element of the EXPR's
-NB. child list) to an IR node.
-NB. y = AST node (1-box wrapping 2-box)
-NB. Result = IR node
+NB. lowerNode: lower a single AST node (a TRAIN or a leaf) to an IR.
+NB. y = AST node (any boxing; robust accessors peel it).
+NB. Result = IR node.
 lowerNode =: 3 : 0
-  node =. y
-  t =. astTag node
+  t =. astTagR y
   if. t = AST_NOON do.
-    p =. astPayload node
-    irLit (> p)
+    irLit astValR y
   elseif. t = AST_STR do.
-    p =. astPayload node
-    irLit > p
+    irLit astValR y
   elseif. t = AST_NAME do.
-    p =. astPayload node
-    irRef > p
+    irRef astValR y
   elseif. (t = AST_VERB) +. (t = AST_ADV) +. (t = AST_CONJ) do.
-    p =. astPayload node
-    irLit > p
+    irLit astValR y
   elseif. t = AST_TRAIN do.
-    NB. AST_TRAIN's payload is the children list (boxed vector).
-    children =. astPayload node
-    lowerExpr children
+    lowerSeq astKidsR y
   elseif. t = AST_EXPR do.
-    NB. Nested EXPR (from parens): the payload is a 2-box of
-    NB. (EXPR-tag, children-vector). Recurse.
-    children =. > 1 { > node
-    lowerExpr children
+    lowerExprNode y
   else.
-    NB. Unknown: a literal a:
     a:
   end.
-)
-
-NB. isAstVerb: is the given AST node a verb/adv/conj?
-NB. (verbs, adverbs, and conjunctions all behave as operators in
-NB. J's evaluation; we lump them together for the fold.)
-isAstVerb =: 3 : 0
-  t =. astTag y
-  t e. AST_VERB , AST_ADV , AST_CONJ
-)
-
-NB. irLitVerb: extract a single char from a verb/adv/conj AST
-NB. and wrap it in an IR_LIT.
-NB. y = AST verb/adv/conj node
-NB. Result = IR_LIT (1-char char vec)
-irLitVerb =: 3 : 0
-  p =. > astPayload y
-  irLit (,p)
 )
 
 NB. --- Unparsing: IR -> J source ----------------------------
@@ -538,6 +511,7 @@ unparseIr =: 3 : 0
   if. op = IR_CALL do. unparseIrCall args return. end.
   if. op = IR_TRAIN2 do. unparseIrTrain2 args return. end.
   if. op = IR_TRAIN3 do. unparseIrTrain3 args return. end.
+  if. op = IR_TRAIN  do. unparseIrTrain  args return. end.
   if. op = IR_ADVR do. unparseIrAdv args return. end.
   if. op = IR_CONJ do. unparseIrConj args return. end.
   if. op = IR_ASSN do. unparseIrAssn args return. end.
@@ -572,6 +546,22 @@ NB. y = args (boxed triple of children)
 unparseIrTrain3 =: 3 : 0
   args =. y
   '( ' , (unparseIr 0 { args) , ' ' , (unparseIr 1 { args) , ' ' , (unparseIr 2 { args) , ' )'
+)
+
+NB. unparseIrTrain: emit J source for a generic IR_TRAIN (N>=2).
+NB. y = args (boxed vector of child IR nodes).
+NB. Emits ( c0 c1 ... cN-1 ) so J's parser recovers train semantics.
+unparseIrTrain =: 3 : 0
+  args =. y
+  n =. # args
+  if. n = 0 do. '(  )' return. end.
+  out =. '( '
+  i =. 0
+  while. i < n do.
+    out =. out , (unparseIr i { args) , ' '
+    i =. >: i
+  end.
+  out , ')'
 )
 
 NB. unparseIrAdv: emit J source for IR_ADVR.
@@ -692,15 +682,19 @@ execIr =: 3 : 0
 
 NB. execIrSingle: execute a single-statement program.
 NB. y = boxed pair (stmt-IR ; source-char-vec)
+NB. We unparse the single statement directly (rather than using the
+NB. program-level `src`, which carries a trailing LF from unparseIrProg)
+NB. so `".` does not choke on the newline.
 execIrSingle =: 3 : 0
   's src' =. y
+  ssrc =. unparseIr s
   if. (irOp s) = IR_ASSN do.
     tmpf =. '/tmp/tacitj_run.ijs'
-    src 1!:2 < tmpf
+    ssrc 1!:2 < tmpf
     0!:101 < tmpf
     a: return.
   end.
-  ". src
+  ". ssrc
 )
 
 NB. execIrMulti: execute a multi-statement program.

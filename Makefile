@@ -1,7 +1,12 @@
 # TacitJ — Makefile
 
-# Use Homebrew J if jconsole isn't on PATH; override with `make JC=...`.
-JC ?= jconsole
+# J interpreter (JSoftware's jconsole, NOT the JDK's /usr/bin/jconsole
+# which is the Java JMX console and would hang). Prefer the Homebrew
+# cask install if present; fall back to whatever `jconsole` is on
+# $PATH. Override with `make JC=/full/path/to/jconsole`.
+JCBIN := $(shell ls /opt/homebrew/Caskroom/j/*/j*/bin/jconsole 2>/dev/null | head -1)
+JCBIN := $(or $(JCBIN),$(shell ls /usr/local/Caskroom/j/*/j*/bin/jconsole 2>/dev/null | head -1))
+JC ?= $(or $(JCBIN),jconsole)
 JFLAGS ?=
 
 SRC_DIR    := src
