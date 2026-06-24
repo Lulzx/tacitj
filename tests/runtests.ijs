@@ -46,12 +46,23 @@ smoutput '-- Loading modules --'
 load 'src/lex.ijs'
 load 'src/parse.ijs'
 load 'src/sem.ijs'
+load 'src/ir.ijs'
+load 'src/opt.ijs'
 load 'src/eval.ijs'
+load 'src/tacitj.ijs'
 smoutput '   modules loaded.'
 smoutput ''
 
 smoutput '-- Lexer tests --'
 load 'tests/test_lex.ijs'
+smoutput ''
+
+smoutput '-- IR tests --'
+load 'tests/test_ir.ijs'
+smoutput ''
+
+smoutput '-- Optimizer tests --'
+load 'tests/test_opt.ijs'
 smoutput ''
 
 smoutput '-- Pipeline tests --'
@@ -63,6 +74,6 @@ NB. --- Summary & exit ---------------------------------------
 passN =. > tpass
 failN =. > tfail
 smoutput '=== Summary ==='
-smoutput passN , ' passed, ' , failN , ' failed.'
+smoutput (": passN) , ' passed, ' , (": failN) , ' failed.'
 
-exit (failN = 0) { 0 1
+exit (failN = 0) { 1 0

@@ -7,7 +7,15 @@ NB. `0!:101` (load script). The parser/lexer still validate that
 NB. the source is well-formed TacitJ (a subset of J), and
 NB. `runTacitJ` returns the result of the last expression.
 NB.
-NB. Stages 1+ replace this with a real AST -> bytecode/C codegen.
+NB. The IR layer (src/ir.ijs) replaces the AST-driven codegen
+NB. in Stage 1+, and the optimizer (src/opt.ijs) sits between
+NB. the IR lowerer and the codegen emitter.
+NB.
+NB. NB: We lex for validation but do not parse in Phase 0 (the
+NB. parser has known boxing inconsistencies on certain inputs;
+NB. see TODO). For Phase 0, we trust the lexer to catch obvious
+NB. errors and use J's `".` or `0!:101` to run the source.
+NB. Stages 1+ will replace this with a real IR-driven codegen.
 
 NB. isMultiLine: does the source have more than one top-level sentence?
 NB. y = source char vector
@@ -30,11 +38,6 @@ NB. runTacitJ: lex (validate) + execute via J
 NB. y = source char vector
 NB. Result = boxed result of the last expression (or a: if no
 NB. bare expression)
-NB. NB: We lex for validation but do not parse in Phase 0 (the parser
-NB. has known bugs on certain inputs; see TODO). For Phase 0, we trust
-NB. the lexer to catch obvious errors and use J's `".` or `0!:101` to
-NB. run the source. Stages 1+ will replace this with a real AST-driven
-NB. codegen.
 runTacitJ =: 3 : 0
   src =. y
   NB. Validate by lexing (catches obvious errors)

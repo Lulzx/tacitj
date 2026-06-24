@@ -216,24 +216,21 @@ astTag =: 3 : 0
 
 NB. astPayload: extract the payload of an AST node
 NB. y = AST node
+NB.
+NB. The shape of the returned value depends on the node kind. Callers
+NB. are responsible for knowing which kind they're dealing with.
+NB.   - NOON / STR / VERB / ADV / CONJ : unboxed scalar value
+NB.   - EXPR / TRAIN : the 2-box payload (tag, children-vector)
+NB.   - ASSIGN / SENT : the 2-box payload (tag, inner-payload)
+NB.
+NB. NB: the EXPR/SENT payloads in this Stage 0 parser use a
+NB. heterogeneous 2-box convention that downstream consumers (the
+NB. IR lowerer) handle explicitly. The optimizer works on the IR,
+NB. not the AST, so it doesn't need a clean AST view.
 astPayload =: 3 : 0
   if. 0 = # y do. '' return. end.
-  smoutput 'astPayload: #y = ' , ": # y
-  smoutput 'astPayload: y = '
-  smoutput y
   t =. astTag y
-  raw =. > 1 { > y
-  if. t = AST_TRAIN do.
-    > raw
-  elseif. t = AST_EXPR do.
-    > raw
-  elseif. t = AST_ASSIGN do.
-    raw
-  elseif. t = AST_SENT do.
-    raw
-  else.
-    > raw
-  end.
+  > 1 { > y
 )
 
 NB. formatAst: pretty-print an AST (for diagnostics)
@@ -255,27 +252,36 @@ formatAst =: 3 : 0
 )
 
 NB. formatNode: pretty-print one AST node
+NB. (Stage 0 diagnostic helper. The optimizer / IR layer is the
+NB. real consumer of the AST.)
 formatNode =: 3 : 0
   t =. astTag y
-  p =. astPayload y
   tagName =. > ({. t) { AST_LABELS
   if. t = AST_NOON do.
+    p =. > astPayload y
     tagName , ' ' , ": p
   elseif. t = AST_STR do.
-    tagName , ' ' , QUOTE , (>p) , QUOTE
+    p =. > astPayload y
+    tagName , ' ' , QUOTE , p , QUOTE
   elseif. t = AST_NAME do.
-    tagName , ' ' , > p
+    p =. > astPayload y
+    tagName , ' ' , p
   elseif. (t = AST_VERB) +. (t = AST_ADV) +. (t = AST_CONJ) do.
-    tagName , ' ' , > p
+    p =. > astPayload y
+    tagName , ' ' , p
   elseif. t = AST_TRAIN do.
+    p =. astPayload y
     tagName , ' [ ' , ([: ; (', ' ,~ formatNode) "0 p) , ' ]'
   elseif. t = AST_EXPR do.
+    p =. astPayload y
     tagName , ' [ ' , ([: ; (', ' ,~ formatNode) "0 p) , ' ]'
   elseif. t = AST_ASSIGN do.
+    p =. astPayload y
     n =. > 0 { p
     e =. > 1 { p
     tagName , ' ' , formatNode n , ' =: ' , formatNode e
   elseif. t = AST_SENT do.
+    p =. astPayload y
     formatNode > p
   else.
     tagName
