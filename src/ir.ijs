@@ -646,15 +646,39 @@ unparseIrLit =: 3 : 0
   prims =. PRIM_VERB , PRIM_ADV , PRIM_CONJ
   q =. QUOTE
   if. 2 = 3!:0 v do.
-    NB. char - if it's a J primitive verb/adverb/conjunction, emit as-is.
-    if. +./ (v = {. prims) , (v = 1 { prims) , (v = 2 { prims) , (v e. 3 }. prims) do.
-      v return.
+    NB. char - if v is a single J primitive, emit as-is.
+    NB. Multi-char strings always get quoted; single primitives don't.
+    if. 1 = # v do.
+      if. v e. prims do.
+        v return.
+      end.
     end.
-    NB. not a prim - quote it
-    q , v , q
+    NB. quote the string; double any internal quotes for escape.
+    NB. Build with explicit append to avoid operator-precedence
+    NB. traps (q , body , q parses as (q , body) , q which doubles
+    NB. the right operand).
+    (q , (quoteEscape v)) , q
   else.
     ": v
   end.
+)
+
+NB. quoteEscape: turn each QUOTE in y into QUOTE,QUOTE.
+NB. Used to safely re-quote a string body in J source.
+quoteEscape =: 3 : 0
+  s =. y
+  lim =. # s
+  out =. ''
+  i =. 0
+  while. i < lim do.
+    if. (i { s) = QUOTE do.
+      out =. out , QUOTE , QUOTE
+    else.
+      out =. out , (i { s)
+    end.
+    i =. >: i
+  end.
+  out
 )
 
 NB. execIr: run an IR_PROG via J's "."

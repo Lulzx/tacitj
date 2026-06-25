@@ -22,12 +22,14 @@ array-language famous for its terse, point-free, tacit style. The compiler's *ow
 is written in that same tacit style, and the goal is for the compiler to eventually compile
 itself (a *self-hosting* bootstrap).
 
-> **Status: Stage 0 complete, IR pipeline live.** The lexer, parser, semantic pass,
+> **Status: Stage 0 complete, IR pipeline + codegen live.** The lexer, parser, semantic pass,
 > IR lowerer, optimizer (constant folding, identity elimination, constant propagation),
-> and a tree-walking evaluator are wired up and tested. The full `compile` pipeline
-> (`lex → parse → sem → lowerIr → opt → execIr`) runs end-to-end on single-sentence
-> programs. The next stages harden the parser (parentheses, multi-line) and replace the
-> evaluator with a real bytecode / C backend.
+> tree-walking evaluator, and a J-source codegen module (IR → J source → exec via `0!:1`)
+> are wired up and tested. The full `compile` pipeline
+> (`lex → parse → sem → lowerIr → opt → execIr`) runs end-to-end on parenthesized and
+> multi-line programs. The next stages wire up the Stage 1–3 bootstrap scripts
+> (Makefile targets, `bootstrap/` directory) and replace the evaluator with a real
+> bytecode / C backend.
 
 The interesting twist: the optimiser is designed to integrate **MDL-inspired compression**
 (grammar induction over J expressions), so writing *less* code actually makes the
@@ -90,18 +92,19 @@ NB. One-line composition of every compiler phase:
 compile =: codegen @ optWithEnv @ lowerIr @ semAnalyze @ parseProgram @ lex
 
 NB. Two execution paths:
-NB.   compile   - full IR pipeline (lex->parse->sem->lowerIr->opt->execIr)
-NB.   runTacitJ - source-level execution via J's ". / 0!:101 (handles
-NB.               multi-line and parens that the Stage-0 parser doesn't yet split)
-runTacitJ =: 3 : 0
-  src =. y
-  toks =. lex src          NB. validate
-  if. isMultiLine src do.
-    src 1!:2 <'/tmp/tacitj_run.ijs'  [  0!:101 <'/tmp/tacitj_run.ijs'
-  else.
-    ". src
-  end.
-)
+NB.   compile    - full IR pipeline (lex->parse->sem->lowerIr->opt->execIr)
+NB.   runTacitJ  - source-level execution via J's ". / 0!:1 (handles
+NB.                multi-line programs that the Stage-0 parser doesn't split)
+NB.   runCompile - compile TacitJ source to J source, execute, return result
+NB.                (wraps emitted code as `r =: <src>` / `r` to capture the
+NB.                value, since 0!:1 returns VOID in J 9.7)
+NB.
+NB. The codegen module (src/codegen.ijs) provides:
+NB.   emitIr      - unparse IR to J source string
+NB.   emitFile    - write IR as J source to a file
+NB.   compileFile - read source, compile, emit to output file
+NB.   execSource  - execute a raw J source string and return the result
+NB.   runCompile  - compile TacitJ source and execute via the pipeline
 ```
 
 ### 3. Run the test suite
@@ -144,8 +147,15 @@ $ make test
   PASS  runTacitJ: mean =: +/ % # ; mean 1..5 (no crash)
   PASS  runFile: examples/mean.ijs ran without crash
 
+-- Codegen tests --
+  PASS  emitIr: 2 + 3
+  PASS  emitIr: mean =: +/ % #
+  PASS  runCompile: 10 - 3 = 7
+  PASS  emitFile: returns 0 on success
+  PASS  compileFile: returns 0 on success
+
 === Summary ===
-73 passed, 0 failed.
+95 passed, 0 failed.
 ```
 
 ---
@@ -218,8 +228,10 @@ pipeline 10          NB. -> 121
                     ▼                                           │
               ┌──────────┐  ┌──────────┐  ┌──────────┐           │
               │ Codegen  │─▶│  Linker  │─▶│  Exec    │           │
-              │ (J-byte  │  │          │  │  / VM    │           │
-              │  / C-FFI)│  │          │  │          │           │
+              │ (emitIr  │  │ (load    │  │  (0!:1   │           │
+              │  to J)   │  │  via     │  │   or VM) │           │
+              │          │  │  temp    │  │          │           │
+              │          │  │  file)   │  │          │           │
               └──────────┘  └──────────┘  └──────────┘
 ```
 
@@ -259,7 +271,7 @@ brew install --cask j
 git clone https://github.com/Lulzx/tacitj.git
 cd tacitj
 
-# Run the test suite (73 tests)
+# Run the test suite (95 tests)
 make test
 
 # Run an example
@@ -291,21 +303,26 @@ tacitj/
 │   ├── sem.ijs         semantic pass (Stage-0: identity)
 │   ├── ir.ijs          IR lowerer (AST→IR_PROG) + unparser (IR→J source) + execIr
 │   ├── opt.ijs         optimizer: constant fold, identity elim, const propagation (MDL stub)
-│   ├── eval.ijs        Stage-0 evaluator (shells out to J's ". or 0!:101)
+│   ├── eval.ijs        Stage-0 evaluator (shells out to J's ". or 0!:1)
+│   ├── codegen.ijs     Stage-0 emitter: emitIr / emitFile / compileFile / runCompile
 │   └── tacitj.ijs      top-level pipeline + runFile + REPL
 │
 ├── tests/
 │   ├── runtests.ijs        test runner with pass/fail counters
 │   ├── test_lex.ijs        lexer regression tests
+│   ├── test_parse.ijs      parser + parentheses + multi-line tests
 │   ├── test_ir.ijs         IR lowerer + end-to-end compile tests
 │   ├── test_opt.ijs        optimizer rewrite-rule tests
-│   └── test_pipeline.ijs   runTacitJ / runFile smoke tests
+│   ├── test_pipeline.ijs   runTacitJ / runFile smoke tests
+│   └── test_codegen.ijs    emitIr / emitFile / compileFile / runCompile tests
 │
 ├── examples/
 │   ├── hello.ijs       minimal smoke program
 │   ├── mean.ijs        3-train (mean)
 │   ├── train.ijs       2-/3-trains (hooks and forks)
 │   └── pipeline.ijs    tacit composition with @
+│
+├── bootstrap/          (planned) Stage 1-3 self-host scripts
 │
 ├── SPEC.md             full technical specification
 ├── AGENTS.md           operating manual for AI agents
@@ -322,7 +339,7 @@ tacitj/
 |------|-----------|--------|
 | 1 | Lexer + Parser + self-compile "hello train" | ✅ Stage 0 |
 | 2 | IR + Optimizer + tacit rewrite engine + Solon stub | ✅ done |
-| 3 | Codegen + Stage 1–3 bootstrap scripts + full test suite | planned |
+| 3 | Codegen + Stage 1–3 bootstrap scripts + full test suite | 🟡 in progress (codegen ✅, bootstrap scripts next) |
 | 4 | Polish, benchmarks (vs explicit), docs, GitHub release | planned |
 
 ### Bootstrap stages
@@ -330,7 +347,7 @@ tacitj/
 | Stage | Description | Status |
 |-------|-------------|--------|
 | **0** | Hand-written C/J bootstrap (tiny explicit interpreter) | **done** |
-| **1** | TacitJ compiler in explicit J, compiled by Stage 0 | planned |
+| **1** | TacitJ compiler in explicit J, compiled by Stage 0 | planned (Makefile target pending) |
 | **2** | Same source, increasing tacit %, compiled by Stage 1 | planned |
 | **3** | Full tacit version; self-hosting (`diff` Stage 2 == Stage 3) | planned |
 | **4+** | Performance VM + LLVM backend | planned |

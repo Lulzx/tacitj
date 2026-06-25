@@ -16,7 +16,7 @@ EXAMPLE_DIR:= examples
 SRCS  := $(wildcard $(SRC_DIR)/*.ijs)
 TESTS := $(wildcard $(TEST_DIR)/*.ijs)
 
-.PHONY: all test smoke run clean install-j help
+.PHONY: all test smoke run clean install-j help stage0 stage1 stage2 stage3 bootstrap selfhost
 
 all: test
 
@@ -27,6 +27,10 @@ help:
 	@echo "  make smoke        - smoke test with examples/hello.ijs"
 	@echo "  make run EXAMPLE=path/to/file.ijs - run a TacitJ program"
 	@echo "  make repl         - start an interactive REPL"
+	@echo "  make stage0       - load Stage 0 + run selfhost check"
+	@echo "  make stage1 INFILE=... OUTFILE=...  - compile a TacitJ file"
+	@echo "  make bootstrap    - run all bootstrap stages"
+	@echo "  make selfhost     - smoke-test self-compilation"
 	@echo "  make clean        - remove build artifacts"
 
 install-j:
@@ -46,6 +50,30 @@ run: install-j
 
 repl: install-j
 	$(JC) $(JFLAGS) $(SRC_DIR)/tacitj.ijs
+
+stage0: install-j
+	$(JC) $(JFLAGS) bootstrap/stage0_run.ijs
+
+stage1: install-j
+	@test -n "$(INFILE)" || { echo "usage: make stage1 INFILE=path.ijs OUTFILE=path.ijs"; exit 1; }
+	@test -n "$(OUTFILE)" || { echo "usage: make stage1 INFILE=path.ijs OUTFILE=path.ijs"; exit 1; }
+	$(JC) $(JFLAGS) bootstrap/stage1.ijs INFILE=$(INFILE) OUTFILE=$(OUTFILE)
+
+bootstrap: stage0
+	@mkdir -p bin
+	$(JC) $(JFLAGS) bootstrap/stage1.ijs INFILE=examples/hello.ijs OUTFILE=bin/stage1_hello.ijs
+	@echo "stage1: produced bin/stage1_hello.ijs"
+	@$(JC) $(JFLAGS) bin/stage1_hello.ijs > /dev/null && echo "stage1: round-trip OK"
+
+selfhost: install-j
+	@echo "selfhost: stage 0 must match stage 0 canary fingerprint"
+	$(JC) $(JFLAGS) bootstrap/stage0_run.ijs
+	@echo "selfhost: stage 1 round-trip on examples/hello.ijs"
+	@mkdir -p bin
+	$(JC) $(JFLAGS) bootstrap/stage1.ijs INFILE=examples/hello.ijs OUTFILE=bin/stage1_hello.ijs > /dev/null
+	@echo "selfhost: stage 1 output file:"
+	@cat bin/stage1_hello.ijs
+	@echo "selfhost: OK"
 
 clean:
 	rm -f *.ijx *.ijb

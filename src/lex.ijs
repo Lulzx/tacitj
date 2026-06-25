@@ -94,12 +94,12 @@ splitOnLF =: 3 : 0
   else.
     NB. Build segments using a loop (avoids self-cut issues)
     starts =. 0 , 1 + positions
-    ends =. positions , >: # src
+    ends =. positions , # src
     n =. # starts
     segs =. 0 $ <''
     for_i. i. n do.
       s =. i { starts
-      e =. (i { ends) - 1
+      e =. i { ends
       seg =. (e - s) {. s }. src
       segs =. segs , <seg
     end.
@@ -138,18 +138,19 @@ stripComments =: 3 : 0
   joinLines cleaned
 )
 
-NB. stripLines: recursively strip comments from a boxed list of lines.
+NB. stripLines: strip comments from a boxed list of lines.
 NB. y is a boxed list of char vectors. Result is a boxed list of
-NB. stripped char vectors.
+NB. stripped char vectors (same length as y).
 stripLines =: 3 : 0
   lines =. y
-  if. 0 = # lines do.
-    lines
-  else.
-    head =. > 0 { lines
-    rest =. }. lines
-    (stripComment head) ; stripLines rest
+  n =. # lines
+  out =. ''
+  i =. 0
+  while. i < n do.
+    out =. out , < stripComment > i { lines
+    i =. >: i
   end.
+  out
 )
 
 
@@ -213,6 +214,37 @@ readString =: 3 : 0
   q
 )
 
+NB. collapseDoubledQuotes: turn every occurrence of QUOTE,QUOTE
+NB. in y into a single QUOTE, and drop the rest of the QUOTEs.
+NB. E.g. "it''s" -> "it's", "hello" -> "hello".
+collapseDoubledQuotes =: 3 : 0
+  s =. y
+  lim =. # s
+  i =. 0
+  out =. ''
+  while. i < lim do.
+    if. (i + 1) < lim do.
+      if. ((i { s) = QUOTE) *. (((>: i) { s) = QUOTE) do.
+        out =. out , ,QUOTE
+        i =. i + 2
+      elseif. (i { s) = QUOTE do.
+        NB. stray quote: skip
+        i =. >: i
+      else.
+        out =. out , (i { s)
+        i =. >: i
+      end.
+    elseif. (i { s) = QUOTE do.
+      NB. trailing stray quote
+      i =. >: i
+    else.
+      out =. out , (i { s)
+      i =. >: i
+    end.
+  end.
+  out
+)
+
 NB. --- Top-level lexer -------------------------------------
 
 NB. lex: tokenise source char vector y.
@@ -249,7 +281,8 @@ lexOne =: 3 : 0
     ((<T_RPAREN) ; <')') ; (>: p)
   elseif. c = QUOTE do.
     endP =. readString (p ; src)
-    raw  =. ((>: p) }. endP {. src) -.~ QUOTE
+    body =. ((>: p) }. (<: endP) {. src)
+    raw  =. collapseDoubledQuotes body
     ((<T_STR) ; <raw) ; endP
   elseif. (c = '=') *. ((p + 1) < lim) *. (((p + 1) { src) -: ':') do.
     ((<T_ASSIGN) ; <,'=:'); p + 2
