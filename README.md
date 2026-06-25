@@ -363,7 +363,11 @@ tacitj/
 │   └── stage3.ijs      stub: full-tacit self-host
 │
 ├── bench/
-│   └── bench.ijs       compile-time / emit-quality benchmark suite
+│   ├── bench.ijs       compile-time / emit-quality benchmark suite
+│   └── mdl_demo.ijs    MDL cost + grammar-induction demo
+│
+├── doc/
+│   └── design.md       architecture, decisions, trade-offs
 │
 ├── SPEC.md             full technical specification
 ├── AGENTS.md           operating manual for AI agents
@@ -387,6 +391,7 @@ tacitj/
 | 7 | MDL cost + Solon-style grammar induction (SPEC §8) | ✅ done |
 | 8 | 2-char conjunctions (`@:`, `&:`, `^:`) — rank-preserving composition | ✅ done |
 | 9 | More 2-char verbs: `<.`, `>.` (floor, ceiling) and `+:`, `-:` (increment, decrement) | ✅ done |
+| 10 | Design doc + `examples/rank.ijs` polish | ✅ done |
 
 ### Bootstrap stages
 
@@ -509,6 +514,17 @@ MDL minimizer (each corpus IR):
   (using `<. @: %:&2`).
 - **New lexer tests** for `<.`, `>.`.
 
+### What's new in v0.7
+
+- **`doc/design.md`** — new architecture / design-decisions
+  document. Covers the IR boxed-triple rationale, the
+  `0!:1`-VOID-return workaround, MDL cost decomposition
+  (grammar vs data), depth tracking in the lexer, and what's
+  deliberately **not** in Stage 0 (`~:/\`, real bytecode
+  codegen, self-hosting). Linked from the README.
+- **`examples/rank.ijs` polished** — uncommented the
+  `floorOfHalf` definition so the example actually runs.
+
 Quick bootstrap tour:
 ```sh
 make stage0       # load Stage 0 + canary check (exit 0 = OK)
@@ -518,7 +534,7 @@ make selfhost     # stage 0 canary + stage 1 deterministic output
 make bench        # compile-ms / out-chars / exec-ms per canary
 ```
 
-Full plan with success criteria, risks, and Solon/MDL chapter: see [`SPEC.md`](SPEC.md). See [`CHANGELOG.md`](CHANGELOG.md) for the v0.1 release notes.
+Full plan with success criteria, risks, and Solon/MDL chapter: see [`SPEC.md`](SPEC.md). See [`CHANGELOG.md`](CHANGELOG.md) for the release notes. See [`doc/design.md`](doc/design.md) for the architecture / design decisions.
 
 ---
 

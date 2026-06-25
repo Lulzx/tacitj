@@ -261,3 +261,33 @@ Documented but not fixed in this release.
 - All existing examples still produce correct output.
 
 [0.6.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.6.0
+
+## [0.7.0] - 2026-06-25
+
+Documentation + example polish.
+
+### Added
+
+- **`doc/design.md`** — new architecture / design-decisions
+  document. Covers:
+  - Pipeline at a glance (and why the composition is one line).
+  - Why the IR is a boxed triple (`(<op ; <args ; <meta)`).
+  - Why we emit J source instead of bytecode (free execution,
+    self-hosting foundation, etc.).
+  - Why the lexer tracks depth (LF-at-depth-0 → T_SENT_END).
+  - Why `>` for unboxing + when it bites.
+  - MDL cost decomposition (grammar vs data).
+  - The `0!:1` VOID-return workaround.
+  - What's deliberately not in Stage 0 (`~:/\`, real codegen,
+    self-hosting).
+  - Trade-offs the design accepts.
+- **`examples/rank.ijs` polished**: uncommented the
+  `floorOfHalf =: <. @: %:&2` definition so the example
+  actually runs end-to-end.
+
+### Verified
+
+- `make test` -> 122 passed, 0 failed.
+- `make run EXAMPLE=examples/rank.ijs` -> prints 55.
+
+[0.7.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.7.0

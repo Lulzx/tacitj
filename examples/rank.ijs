@@ -12,23 +12,37 @@ NB.
 NB. Common idioms:
 NB.
 NB.   sumSquares y = +/ @: *: y    NB. sum of (each element squared)
-NB.   floorHalf  y = <. @: %:&2 y    NB. floor of (each / 2)
 
 NB. --- Demo 1: sum of squares via @: composition ---
+NB. sumSquares y = sum of (each element squared).
+NB. Without @:, we'd write `+/ *: y`. With @:, it's a 2-step
+NB. composition that makes the intent explicit.
 sumSquares =: +/ @: *:
 smoutput sumSquares 1 2 3 4 5
 NB. -> 55
 
-NB. --- Demo 2: floor via <. verb ---
-NB. <. applied to a scalar: 3.7 <. 3 = 3 (dyadic floor)
-NB. As a 2-train hook, it forms a derived verb.
-NB. NB: the Stage 0 runner doesn't evaluate <. y as a 2-train
-NB. hook yet (it produces a degenerate IR for one-arg hooks).
-NB. The lexer/parser/unparser all recognise <. correctly.
+NB. --- Demo 2: floor + increment via 2-char verbs ---
+NB. <. y is floor of y. >: y is increment.
+NB. As composition: (>. @: <:) is ceiling of predecessor.
+
+NB. floor 3.7 = 3
+NB. ceil  3.2 = 4
+NB. +: 5   = 6
+
+NB. NB: the runner doesn't always handle the 2-char verbs as
+NB. monadic applications cleanly. The lexer/parser/unparser
+NB. all handle them correctly, and they round-trip via
+NB. emitIr. Use them in compositions like sumSquares for now.
+
+NB. --- Demo 3: difference between @ and @: ---
+NB. `f @ g y` has the rank of `f y` (atop).
+NB. `f @: g y` has the rank of `g y` (atop with rank).
 NB.
-NB. floorOfHalf =: <. @: %:&2
-NB. floorOfHalf 7     NB. floor(7/2) = floor(3.5) = 3
-NB. floorOfHalf 9     NB. floor(9/2) = floor(4.5) = 4
-NB.
-NB. floorOfHalf 7
-floorOfHalf 9
+NB. For 1D lists they behave the same. The difference matters
+NB. when working with nested arrays or different ranks.
+
+NB. --- Demo 4: per-element increment ---
+NB. +: applied to a list gives the incremented list.
+NB. (not yet runnable end-to-end, but lexer/parser support it)
+NB. smoutput +: 5 10 15
+NB. -> 6 11 16
