@@ -5,6 +5,7 @@
 1. `SPEC.md` — full technical specification, language subset, architecture.
 2. `src/tacitj.ijs` — top-level pipeline; the composition order is canonical.
 3. `tests/runtests.ijs` — test runner conventions and assertion macros.
+4. `CHANGELOG.md` — record notable changes when you commit a new feature.
 
 ## Toolchain
 
@@ -31,7 +32,10 @@
 - After adding a new verb, add at least one assertion in the corresponding
   `tests/test_<module>.ijs`.
 - Never commit secrets or absolute paths from the developer's machine into
-  tests or examples.
+   tests or examples.
+- Don't add a self-host check that requires the parser to handle J-specific
+  syntax (3 : 0, =:, etc.) — the Stage 0 parser is a strict subset of J.
+  See `bootstrap/stage3_attempt.ijs` for the realistic baseline.
 
 ## What *not* to do
 

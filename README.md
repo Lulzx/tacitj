@@ -380,7 +380,7 @@ tacitj/
 | 1 | Lexer + Parser + self-compile "hello train" | ✅ Stage 0 |
 | 2 | IR + Optimizer + tacit rewrite engine + Solon stub | ✅ done |
 | 3 | Codegen + Stage 1–3 bootstrap scripts + full test suite | ✅ done |
-| 4 | Polish, benchmarks (vs explicit), docs, GitHub release | 🟡 in progress (benchmarks next) |
+| 4 | Polish, benchmarks, docs, v0.1 release | ✅ done |
 
 ### Bootstrap stages
 
@@ -389,18 +389,25 @@ tacitj/
 | **0** | Hand-written C/J bootstrap (tiny explicit interpreter) | **done** |
 | **1** | TacitJ compiler in explicit J, compiled by Stage 0 | ✅ done (`make stage1`) |
 | **2** | Same source, increasing tacit %, compiled by Stage 1 | 🟡 stub (planned refactor) |
-| **3** | Full tacit version; self-hosting (`diff` Stage 2 == Stage 3) | 🟡 stub (planned) |
+| **3** | Full tacit version; self-hosting (`diff` Stage 2 == Stage 3) | 🟡 baseline (`make stage3-attempt`) |
 | **4+** | Performance VM + LLVM backend | planned |
+
+`make stage3-attempt` runs `bootstrap/stage3_attempt.ijs`, which:
+- re-checks the Stage 0 canary (`( 1 + 2 )|9`)
+- verifies that 3 small canaries are fixed points (compile-emit-recompile == compile-emit)
+- reports the current status of file-level self-host (TODO: parser
+  doesn't yet handle the full J subset in `examples/*.ijs`).
 
 Quick bootstrap tour:
 ```sh
 make stage0       # load Stage 0 + canary check (exit 0 = OK)
 make stage1 INFILE=examples/hello.ijs OUTFILE=bin/hello.ijs
 make bootstrap    # stage 0 + stage 1 round-trip on hello.ijs
-make selfhost      # stage 0 canary + stage 1 deterministic output
+make selfhost     # stage 0 canary + stage 1 deterministic output
+make bench        # compile-ms / out-chars / exec-ms per canary
 ```
 
-Full plan with success criteria, risks, and Solon/MDL chapter: see [`SPEC.md`](SPEC.md).
+Full plan with success criteria, risks, and Solon/MDL chapter: see [`SPEC.md`](SPEC.md). See [`CHANGELOG.md`](CHANGELOG.md) for the v0.1 release notes.
 
 ---
 
