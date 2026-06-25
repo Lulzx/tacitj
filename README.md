@@ -22,14 +22,15 @@ array-language famous for its terse, point-free, tacit style. The compiler's *ow
 is written in that same tacit style, and the goal is for the compiler to eventually compile
 itself (a *self-hosting* bootstrap).
 
-> **Status: Stage 0 complete, IR pipeline + codegen live.** The lexer, parser, semantic pass,
-> IR lowerer, optimizer (constant folding, identity elimination, constant propagation),
-> tree-walking evaluator, and a J-source codegen module (IR → J source → exec via `0!:1`)
-> are wired up and tested. The full `compile` pipeline
-> (`lex → parse → sem → lowerIr → opt → execIr`) runs end-to-end on parenthesized and
-> multi-line programs. The next stages wire up the Stage 1–3 bootstrap scripts
-> (Makefile targets, `bootstrap/` directory) and replace the evaluator with a real
-> bytecode / C backend.
+> **Status: Stages 0–1 complete, IR pipeline + codegen + bootstrap live.** The lexer,
+> parser, semantic pass, IR lowerer, optimizer (constant folding, identity
+> elimination, constant propagation), tree-walking evaluator, J-source codegen
+> module (IR → J source → exec via `0!:1`), and Stage 0–1 bootstrap scripts are
+> wired up and tested. The full `compile` pipeline
+> (`lex → parse → sem → lowerIr → opt → execIr`) runs end-to-end on
+> parenthesized and multi-line programs. The next milestones are Stage 2
+> (higher-tactic-density refactor), Stage 3 (self-hosting), and a benchmark
+> suite.
 
 The interesting twist: the optimiser is designed to integrate **MDL-inspired compression**
 (grammar induction over J expressions), so writing *less* code actually makes the
@@ -198,6 +199,27 @@ double 7              NB. -> 14
 incr 41               NB. -> 42
 ```
 
+### [`squares.ijs`](examples/squares.ijs) — sum of squares in one line
+
+```j
+sumSquares =: +/ @: *:
+sumSquares 1 2 3 4 5        NB. -> 55
+```
+
+### [`wordcount.ijs`](examples/wordcount.ijs) — tacit word counter
+
+```j
+words =: +/ @: (1 , 2 ~:/\ ])
+words 'the quick brown fox'  NB. -> 4
+```
+
+### [`fib.ijs`](examples/fib.ijs) — golden ratio via Binet-style expression
+
+```j
+phi =: (1 + 2 %: 5) % 2
+phi                          NB. -> 1.61803...
+```
+
 ### [`pipeline.ijs`](examples/pipeline.ijs) — tacit composition with `@`
 
 ```j
@@ -279,6 +301,13 @@ make run EXAMPLE=examples/mean.ijs
 
 # Start the REPL
 make repl
+
+# Run the bootstrap pipeline
+make bootstrap          # stage 0 + stage 1 round-trip
+make stage1 INFILE=examples/hello.ijs OUTFILE=bin/hello.ijs
+
+# Run the benchmark suite
+make bench              # compile-ms / out-chars / exec-ms per canary
 ```
 
 The Makefile auto-detects the Homebrew J cask (`/opt/homebrew/Caskroom/j/*/j*/bin/jconsole`).
@@ -320,9 +349,20 @@ tacitj/
 │   ├── hello.ijs       minimal smoke program
 │   ├── mean.ijs        3-train (mean)
 │   ├── train.ijs       2-/3-trains (hooks and forks)
-│   └── pipeline.ijs    tacit composition with @
+│   ├── pipeline.ijs    tacit composition with @
+│   ├── squares.ijs     sum-of-squares (single-line demo)
+│   ├── wordcount.ijs   tacit word counter
+│   └── fib.ijs         golden ratio via Binet
 │
-├── bootstrap/          (planned) Stage 1-3 self-host scripts
+├── bootstrap/          Stage 1-3 self-host scripts
+│   ├── stage0.ijs      module: load Stage 0 + canary helpers
+│   ├── stage0_run.ijs  one-shot: stage0 + selfhost + exit
+│   ├── stage1.ijs      compile TacitJ source to standalone J
+│   ├── stage2.ijs      stub: higher-tacit refactor
+│   └── stage3.ijs      stub: full-tacit self-host
+│
+├── bench/
+│   └── bench.ijs       compile-time / emit-quality benchmark suite
 │
 ├── SPEC.md             full technical specification
 ├── AGENTS.md           operating manual for AI agents
@@ -339,18 +379,26 @@ tacitj/
 |------|-----------|--------|
 | 1 | Lexer + Parser + self-compile "hello train" | ✅ Stage 0 |
 | 2 | IR + Optimizer + tacit rewrite engine + Solon stub | ✅ done |
-| 3 | Codegen + Stage 1–3 bootstrap scripts + full test suite | 🟡 in progress (codegen ✅, bootstrap scripts next) |
-| 4 | Polish, benchmarks (vs explicit), docs, GitHub release | planned |
+| 3 | Codegen + Stage 1–3 bootstrap scripts + full test suite | ✅ done |
+| 4 | Polish, benchmarks (vs explicit), docs, GitHub release | 🟡 in progress (benchmarks next) |
 
 ### Bootstrap stages
 
 | Stage | Description | Status |
 |-------|-------------|--------|
 | **0** | Hand-written C/J bootstrap (tiny explicit interpreter) | **done** |
-| **1** | TacitJ compiler in explicit J, compiled by Stage 0 | planned (Makefile target pending) |
-| **2** | Same source, increasing tacit %, compiled by Stage 1 | planned |
-| **3** | Full tacit version; self-hosting (`diff` Stage 2 == Stage 3) | planned |
+| **1** | TacitJ compiler in explicit J, compiled by Stage 0 | ✅ done (`make stage1`) |
+| **2** | Same source, increasing tacit %, compiled by Stage 1 | 🟡 stub (planned refactor) |
+| **3** | Full tacit version; self-hosting (`diff` Stage 2 == Stage 3) | 🟡 stub (planned) |
 | **4+** | Performance VM + LLVM backend | planned |
+
+Quick bootstrap tour:
+```sh
+make stage0       # load Stage 0 + canary check (exit 0 = OK)
+make stage1 INFILE=examples/hello.ijs OUTFILE=bin/hello.ijs
+make bootstrap    # stage 0 + stage 1 round-trip on hello.ijs
+make selfhost      # stage 0 canary + stage 1 deterministic output
+```
 
 Full plan with success criteria, risks, and Solon/MDL chapter: see [`SPEC.md`](SPEC.md).
 

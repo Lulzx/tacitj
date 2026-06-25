@@ -16,7 +16,7 @@ EXAMPLE_DIR:= examples
 SRCS  := $(wildcard $(SRC_DIR)/*.ijs)
 TESTS := $(wildcard $(TEST_DIR)/*.ijs)
 
-.PHONY: all test smoke run clean install-j help stage0 stage1 stage2 stage3 bootstrap selfhost
+.PHONY: all test smoke run clean install-j help stage0 stage1 stage2 stage3 bootstrap selfhost bench
 
 all: test
 
@@ -31,6 +31,7 @@ help:
 	@echo "  make stage1 INFILE=... OUTFILE=...  - compile a TacitJ file"
 	@echo "  make bootstrap    - run all bootstrap stages"
 	@echo "  make selfhost     - smoke-test self-compilation"
+	@echo "  make bench        - run compile/exec benchmark suite"
 	@echo "  make clean        - remove build artifacts"
 
 install-j:
@@ -74,6 +75,9 @@ selfhost: install-j
 	@echo "selfhost: stage 1 output file:"
 	@cat bin/stage1_hello.ijs
 	@echo "selfhost: OK"
+
+bench: install-j
+	$(JC) $(JFLAGS) bench/bench.ijs
 
 clean:
 	rm -f *.ijx *.ijb

@@ -38,16 +38,20 @@ NB. runTacitJ: lex (validate) + execute via J
 NB. y = source char vector
 NB. Result = boxed result of the last expression (or a: if no
 NB. bare expression)
+NB.
+NB. For multi-line programs, the J 9.7 `0!:1` foreign executes
+NB. the file but returns VOID. So multi-line programs don't
+NB. surface a result here. To see output, write `smoutput <expr>`
+NB. at the end of the file, or use the single-line form.
 runTacitJ =: 3 : 0
   src =. y
   NB. Validate by lexing (catches obvious errors)
   toks =. lex src
-  NB. Execute: use ". for single line, 0!:101 for multi-line
   if. isMultiLine src do.
     NB. Write to a temp file and load
     tmpf =. '/tmp/tacitj_run.ijs'
     src 1!:2 < tmpf
-    0!:101 < tmpf
+    0!:1 < tmpf
     a:
   else.
     ". src
