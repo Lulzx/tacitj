@@ -650,8 +650,8 @@ NB. primitive forms. The unparser uses this to decide whether a
 NB. literal is a recognised J primitive (and so should be emitted
 NB. unquoted) or whether it's a string of characters (quoted).
 prims1 =: PRIM_VERB , PRIM_ADV , PRIM_CONJ
-prims2 =: '*:' , '%:' , '^:' , '|:' , '<:' , '>:' , '~:'
-prims2 =: prims2 , CONJ_TWO_CHAR
+prims2 =: '*:' , '%:' , '^:' , '|:' , '<:' , '>:' , '~:' , '+:' , '-:'
+prims2 =: prims2 , '<.' , '>.' , '+.' , '-.' , CONJ_TWO_CHAR
 
 unparseIrLit =: 3 : 0
   v =. y

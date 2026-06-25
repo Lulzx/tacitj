@@ -135,4 +135,20 @@ check (# toks6) ; 4 ; <'lex ^:: 4 tokens'
 check (tokType 1 { toks6) ; T_CONJ ; <'lex ^:: T_CONJ at index 1'
 check (tokValue 1 { toks6) ; '^:'; <'lex ^:: value is ^:'
 
+NB. --- 2-char verbs with . suffix (added in v0.6) -----------
+
+NB. <. is a single 2-char verb token (floor)
+toks7 =. lex '<. 3.5'
+NB. Expected tokens: <., 3.5, EOF = 3
+check (# toks7) ; 3 ; <'lex <.: 3 tokens'
+check (tokType 0 { toks7) ; T_VERB ; <'lex <.: T_VERB at index 0'
+check (tokValue 0 { toks7) ; '<.'; <'lex <.: value is <.'
+
+NB. >. is a single 2-char verb token (ceiling)
+toks8 =. lex '>. 3.5'
+NB. Expected tokens: >., 3.5, EOF = 3
+check (# toks8) ; 3 ; <'lex >.: 3 tokens'
+check (tokType 0 { toks8) ; T_VERB ; <'lex >.: T_VERB at index 0'
+check (tokValue 0 { toks8) ; '>.'; <'lex >.: value is >.'
+
 

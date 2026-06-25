@@ -350,9 +350,17 @@ lexOne =: 3 : 0
     NB. `^` is in PRIM_VERB and would otherwise be classified as
     NB. a 2-char verb (`^:` is a modifier in J, not a verb).
     ((<T_CONJ) ; <(c , ':')) ; (>: >: p)
-  elseif. (c e. ('*' , '%' , '^' , '|' , '<' , '>' , '~')) *. ((p + 1) < lim) *. ((p + 1) { src) = ':' do.
-    NB. Two-char verb: *: %: ^: |: <: >: ~: (square, root, log, reverse,
-    NB. increment, decrement, not-equal).
+  elseif. (c e. ('*' , '%' , '^' , '|' , '<' , '>' , '~' , '<' , '>' , '+' , '-')) *. ((p + 1) < lim) *. ((p + 1) { src) = '.' do.
+    NB. Two-char verb with .: *., %., ^., |., <., >., ~., <., >., +., -.
+    NB. (square, root, log, reverse, increment, decrement, not-equal
+    NB. floor, ceiling, plus/minus). NB: '.' (dot) is also the J
+    NB. "do" adverb; with a 2-char verb prefix it becomes a verb.
+    ((<T_VERB) ; <(c , '.')) ; (>: >: p)
+  elseif. (c e. ('*' , '%' , '^' , '|' , '<' , '>' , '~' , '+' , '-')) *. ((p + 1) < lim) *. ((p + 1) { src) = ':' do.
+    NB. Two-char verb with :: *:, %:, ^:, |:, <:, >:, ~:, +:, -:
+    NB. (square, root, log, reverse, increment, decrement, not-equal
+    NB. plus/minus). NB: ':' is a J modifier; with a 2-char verb
+    NB. prefix it becomes a verb (e.g. +: is increment).
     ((<T_VERB) ; <(c , ':')) ; (>: >: p)
   elseif. c e. PRIM_VERB do.
     ((<T_VERB) ; <,c) ; (>: p)

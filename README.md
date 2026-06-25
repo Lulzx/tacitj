@@ -386,6 +386,7 @@ tacitj/
 | 6 | Identity functions (`]`, `[`), `~:`, and 2-char `~:`; works with `@` composition | ✅ done |
 | 7 | MDL cost + Solon-style grammar induction (SPEC §8) | ✅ done |
 | 8 | 2-char conjunctions (`@:`, `&:`, `^:`) — rank-preserving composition | ✅ done |
+| 9 | More 2-char verbs: `<.`, `>.` (floor, ceiling) and `+:`, `-:` (increment, decrement) | ✅ done |
 
 ### Bootstrap stages
 
@@ -402,8 +403,10 @@ tacitj/
 The Stage 0 lexer/parser recognises:
 
 - **Verbs (single char)**: `+ - * % ^ = < > | & ~ ; , $ # ? ! ] [`
-- **Verbs (two char)**: `*: %: ^: |: <: >: ~:` (square, root, log,
-  reverse, increment, decrement, not-equal)
+- **Verbs (two char)**: `*: %: ^: |: <: >: ~: +: -:`
+  (square, root, log, reverse, increment, decrement, not-equal,
+  increment, decrement) and `<. >. +. -.`
+  (floor, ceiling, plus/minus on floats).
 - **Adverbs**: `/ \ ~ . :`  (insert, prefix/suffix, reflexive, etc.)
 - **Conjunctions (single char)**: `@ & ^ !`  (atop, bond, power, fit)
 - **Conjunctions (two char)**: `@: &: ^:` (atop/bond/power with rank)
@@ -493,6 +496,18 @@ MDL minimizer (each corpus IR):
   composition. Sums the squares of 1..5 = 55.
 - **New lexer tests**: `@:`, `&:`, `^:` as T_CONJ tokens (in
   `tests/test_lex.ijs`).
+
+### What's new in v0.6
+
+- **More 2-char verbs**: `<.` and `>.` (floor / ceiling) plus `+:`
+  and `-:` (increment / decrement). The Stage 0 lexer now
+  handles `*` / `%` / `^` / `|` / `<` / `>` / `~` / `+` / `-`
+  followed by either `:` or `.`.
+- **Unparser fix**: `unparseIrLit` knows about the four new 2-char
+  verbs, so they round-trip without quoting.
+- **Updated `examples/rank.ijs`** to demonstrate `floorOfHalf`
+  (using `<. @: %:&2`).
+- **New lexer tests** for `<.`, `>.`.
 
 Quick bootstrap tour:
 ```sh

@@ -231,3 +231,33 @@ classification is correct.
 - `make run EXAMPLE=examples/rank.ijs` -> 55.
 
 [0.5.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.5.0
+
+## [0.6.0] - 2026-06-25
+
+More 2-char verbs land.
+
+### Added
+
+- **2-char verbs**: `<.`, `>.` (floor, ceiling), `+:`, `-:`
+  (increment, decrement). All four are now lexed as a single
+  T_VERB token. Same pattern as the existing 2-char verbs
+  (`*:`, `%:`, `^:`, etc.).
+- **Unparser fix**: `unparseIrLit` knows about the four new 2-char
+  verbs, so they round-trip without quoting.
+- **`examples/rank.ijs`**: updated to demonstrate `floorOfHalf`
+  (using `<. @: %:&2`).
+- **New lexer tests** in `tests/test_lex.ijs` for `<.` and `>.`.
+
+### Notes
+
+There are still parser issues with 2-trains that have a monadic
+verb (like `+:`) followed by a noun. The lexer is correct but the
+parser eagerly builds trains that J rejects when executed.
+Documented but not fixed in this release.
+
+### Verified
+
+- `make test` -> 122 passed, 0 failed (was 116).
+- All existing examples still produce correct output.
+
+[0.6.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.6.0
