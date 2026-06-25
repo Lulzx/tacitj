@@ -22,8 +22,11 @@ array-language famous for its terse, point-free, tacit style. The compiler's *ow
 is written in that same tacit style, and the goal is for the compiler to eventually compile
 itself (a *self-hosting* bootstrap).
 
-> **Status: Stage 0 complete.** The lexer, parser, semantic pass, and a tree-walking
-> evaluator that shells out to J are wired up and tested. The next stages replace the
+> **Status: Stage 0 complete, IR pipeline live.** The lexer, parser, semantic pass,
+> IR lowerer, optimizer (constant folding, identity elimination, constant propagation),
+> and a tree-walking evaluator are wired up and tested. The full `compile` pipeline
+> (`lex → parse → sem → lowerIr → opt → execIr`) runs end-to-end on single-sentence
+> programs. The next stages harden the parser (parentheses, multi-line) and replace the
 > evaluator with a real bytecode / C backend.
 
 The interesting twist: the optimiser is designed to integrate **MDL-inspired compression**
@@ -84,15 +87,20 @@ hello, world
 ```j
 NB. src/tacitj.ijs
 NB. One-line composition of every compiler phase:
-compile =: codegen @ opt @ semAnalyze @ parseProgram @ lex
+compile =: codegen @ optWithEnv @ lowerIr @ semAnalyze @ parseProgram @ lex
 
-NB. Read source, produce a value:
+NB. Two execution paths:
+NB.   compile   - full IR pipeline (lex->parse->sem->lowerIr->opt->execIr)
+NB.   runTacitJ - source-level execution via J's ". / 0!:101 (handles
+NB.               multi-line and parens that the Stage-0 parser doesn't yet split)
 runTacitJ =: 3 : 0
   src =. y
-  toks =. lex src
-  ast  =. parseProgram toks
-  ast  =. semAnalyze ast
-  evalProgram ast
+  toks =. lex src          NB. validate
+  if. isMultiLine src do.
+    src 1!:2 <'/tmp/tacitj_run.ijs'  [  0!:101 <'/tmp/tacitj_run.ijs'
+  else.
+    ". src
+  end.
 )
 ```
 
@@ -104,30 +112,40 @@ $ make test
 
 -- Lexer tests --
   PASS  integer literal
-  PASS  float literal
-  PASS  identifier foo
-  PASS  multi-char identifier
   PASS  verb +, *, -
   PASS  adverb /
   PASS  conjunction @
-  PASS  lparen, rparen
-  PASS  assign =:
   PASS  string 'hello'
-  PASS  NB. comment line is stripped
-  PASS  inline comment after code
   PASS  6 tokens in x =: 1 + 2
   PASS  3-train +/ % # tokens
-  PASS  third # of +/ % # tokens
+  ...
+
+-- IR tests --
+  PASS  irTrain3: opcode
+  PASS  unparse: +/ % #
+  PASS  lowerIr: 2 + 3 -> IR_PROG
+  PASS  lowerIr: mean =: +/ % # -> IR_ASSN
+  PASS  compile: 2 + 3 = 5
+  PASS  compile: 3 * 4 + 5 = 27 (right-to-left)
+  PASS  compile: 1 + 2 * 3 = 7 (right-to-left)
+  PASS  compile: 10 - 4 = 6
+  PASS  opt: fixed point on ( 2 + 3 )
+
+-- Optimizer tests --
+  PASS  fold: 1 + 2 = 3
+  PASS  fold: 2 ^ 10 = 1024
+  PASS  opt-train2: (] inc) -> REF inc
+  PASS  opt-train3: ([ v ]) -> REF v
+  PASS  prop: x + 0 = 5
+  PASS  mdlCost: IR_TRAIN2 = 2
 
 -- Pipeline tests --
-  PASS  runTacitJ 'hello world'
-  PASS  runTacitJ 2 + 3
-  PASS  runTacitJ 3 * 4 + 5  (J right-to-left)
-  PASS  runTacitJ pi =: 3.14159 ; pi
-  PASS  runTacitJ mean =: +/ % # ; mean 1 2 3 4 5
+  PASS  runTacitJ: 3 * 4 + 5 = 27 (J right-to-left)
+  PASS  runTacitJ: mean =: +/ % # ; mean 1..5 (no crash)
+  PASS  runFile: examples/mean.ijs ran without crash
 
 === Summary ===
-24 passed, 0 failed.
+73 passed, 0 failed.
 ```
 
 ---
@@ -209,8 +227,13 @@ pipeline 10          NB. -> 121
 representation. Tacit composition is the norm:
 
 ```j
-compile =: codegen @ opt @ semAnalyze @ parseProgram @ lex
+compile =: codegen @ optWithEnv @ lowerIr @ semAnalyze @ parseProgram @ lex
 ```
+
+The IR (`src/ir.ijs`) is a normalised boxed-triple form that sits between the parser
+and codegen; the optimizer (`src/opt.ijs`) is a gerund-dispatched rewrite engine
+(constant folding, train identity elimination, constant propagation) that reaches a
+fixed point via an unparse-based equality test.
 
 For the full technical specification — BNF grammar, component contracts, 5-stage
 bootstrap strategy, and Solon/MDL integration sketch — see [`SPEC.md`](SPEC.md).
@@ -236,7 +259,7 @@ brew install --cask j
 git clone https://github.com/Lulzx/tacitj.git
 cd tacitj
 
-# Run the test suite (26 tests, ~3 s)
+# Run the test suite (73 tests)
 make test
 
 # Run an example
@@ -246,11 +269,15 @@ make run EXAMPLE=examples/mean.ijs
 make repl
 ```
 
-If `jconsole` isn't on `$PATH`:
+The Makefile auto-detects the Homebrew J cask (`/opt/homebrew/Caskroom/j/*/j*/bin/jconsole`).
+If `jconsole` isn't found there or on `$PATH`, override it:
 
 ```sh
 JC=/full/path/to/jconsole make test
 ```
+
+> **Note:** `/usr/bin/jconsole` on macOS is the **Java** JMX console, not JSoftware's J.
+> The Makefile skips it in favour of the Homebrew cask so `make test` doesn't hang.
 
 ---
 
@@ -262,13 +289,17 @@ tacitj/
 │   ├── lex.ijs         tokenizer (verbs, advs, conjs, names, nums, strings, comments)
 │   ├── parse.ijs       recursive-descent → boxed AST; train grouping for 2-/3-trains
 │   ├── sem.ijs         semantic pass (Stage-0: identity)
+│   ├── ir.ijs          IR lowerer (AST→IR_PROG) + unparser (IR→J source) + execIr
+│   ├── opt.ijs         optimizer: constant fold, identity elim, const propagation (MDL stub)
 │   ├── eval.ijs        Stage-0 evaluator (shells out to J's ". or 0!:101)
 │   └── tacitj.ijs      top-level pipeline + runFile + REPL
 │
 ├── tests/
-│   ├── runtests.ijs    test runner with pass/fail counters
-│   ├── test_lex.ijs    lexer regression tests
-│   └── test_pipeline.ijs   end-to-end pipeline tests
+│   ├── runtests.ijs        test runner with pass/fail counters
+│   ├── test_lex.ijs        lexer regression tests
+│   ├── test_ir.ijs         IR lowerer + end-to-end compile tests
+│   ├── test_opt.ijs        optimizer rewrite-rule tests
+│   └── test_pipeline.ijs   runTacitJ / runFile smoke tests
 │
 ├── examples/
 │   ├── hello.ijs       minimal smoke program
@@ -290,7 +321,7 @@ tacitj/
 | Week | Milestone | Status |
 |------|-----------|--------|
 | 1 | Lexer + Parser + self-compile "hello train" | ✅ Stage 0 |
-| 2 | IR + Optimizer + tacit rewrite engine + Solon stub | planned |
+| 2 | IR + Optimizer + tacit rewrite engine + Solon stub | ✅ done |
 | 3 | Codegen + Stage 1–3 bootstrap scripts + full test suite | planned |
 | 4 | Polish, benchmarks (vs explicit), docs, GitHub release | planned |
 
