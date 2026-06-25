@@ -77,6 +77,10 @@ smoutput '-- Codegen tests --'
 load 'tests/test_codegen.ijs'
 smoutput ''
 
+smoutput '-- MDL tests --'
+load 'tests/test_mdl.ijs'
+smoutput ''
+
 NB. --- Summary & exit ---------------------------------------
 
 passN =. > tpass

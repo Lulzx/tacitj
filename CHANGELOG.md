@@ -159,3 +159,41 @@ More Stage 0 subset — identity functions, `~:`, working `@`.
 - `2 ~:/\ ]` style scans (need both `~:/\` and `]` working).
 
 [0.3.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.3.0
+
+## [0.4.0] - 2026-06-25
+
+MDL cost + Solon-style grammar induction land.
+
+### Added
+
+- **`src/mdl.ijs`** — Solon-style MDL machinery:
+  - `mdlScore ir` — total cost = grammar_cost(opcode) + data_cost(literal).
+  - `opMdlCost op` — per-opcode grammar cost.
+  - `allSubIrs ir` — collect every sub-IR (used by induction).
+  - `grammarInduce corpus` — frequency count of structurally-
+    identical sub-IRs across a corpus; returns sorted
+    (count, key, sample) rows.
+  - `mdlMinimize ir` — generate candidates from `optPass`, pick
+    the lowest-MDL variant, iterate to fixed point.
+  - `mdlDemo` — one-shot demo of the above on a corpus of 4 IRs.
+- **`bench/mdl_demo.ijs`** + `make mdl-demo` target.
+- **`tests/test_mdl.ijs`** — 8 tests covering `mdlScore` (numeric /
+  char / primitive literals, refs, calls), `grammarInduce` (empty
+  corpus, non-empty), and `mdlMinimize` (never increases cost).
+- **Fixed load-order bug in `src/ir.ijs`**: now loads
+  `src/lex.ijs` so the unparser's primitive-verb check has
+  `PRIM_VERB`, `PRIM_ADV`, `PRIM_CONJ` in scope. Previously, the
+  check silently failed when ir.ijs was loaded before lex.ijs
+  (e.g. from `src/mdl.ijs`).
+
+### Verified
+
+- `make test` -> 105 passed, 0 failed (was 97).
+- `make mdl-demo` -> the demo runs and shows:
+  - 4 corpus IRs each at MDL cost 10.
+  - Grammar induction surfaces `1`, `2`, `+`, `*`, `3`, and the
+    full programs (with their counts).
+  - `mdlMinimize` folds each `1+2`-style IR from cost 10 to 2.
+- `make stage0`, `make stage3-attempt`, `make bench` all still pass.
+
+[0.4.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.4.0

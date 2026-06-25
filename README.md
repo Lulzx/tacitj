@@ -383,6 +383,7 @@ tacitj/
 | 4 | Polish, benchmarks, docs, v0.1 release | ✅ done |
 | 5 | Multi-line programs (LF = sentence boundary) + 2-char verbs (`*:`, `%:`, `^:`, `\|:`, `<:`, `>:`) | ✅ done |
 | 6 | Identity functions (`]`, `[`), `~:`, and 2-char `~:`; works with `@` composition | ✅ done |
+| 7 | MDL cost + Solon-style grammar induction (SPEC §8) | ✅ done |
 
 ### Bootstrap stages
 
@@ -417,6 +418,38 @@ scan), the adverb `\: ` (suffix). These are tracked in
 - verifies that 3 small canaries are fixed points (compile-emit-recompile == compile-emit)
 - compiles all 5 examples through Stage 0.
 
+### MDL / grammar induction
+
+`make mdl-demo` runs `bench/mdl_demo.ijs`, which exercises the
+Solon-style MDL machinery in `src/mdl.ijs`:
+
+- **`mdlScore`** — total cost of an IR (grammar cost per opcode + data
+  cost per literal).
+- **`grammarInduce`** — frequency count of structurally-identical
+  sub-IRs across a corpus; surfaces common patterns.
+- **`mdlMinimize`** — uses MDL cost to pick between candidate rewrites;
+  here it folds `1 + 2` from cost 10 to cost 2 (constant).
+
+Example output:
+```
+Grammar induction (top patterns):
+  24x  (the IR_PROG node, common to all sub-IRs)
+  3x   1
+  3x   2
+  2x   +
+  2x   *
+  2x   3
+  1x   1 + 2
+  1x   1 * 2
+  ...
+
+MDL minimizer (each corpus IR):
+  corpus[0]: 10 -> 2
+  corpus[1]: 10 -> 2
+  corpus[2]: 10 -> 2
+  corpus[3]: 10 -> 2
+```
+
 ### What's new in v0.3
 
 - **Identity functions `]` and `[`** added to the lexer. Used in
@@ -429,6 +462,19 @@ scan), the adverb `\: ` (suffix). These are tracked in
   workaround in v0.2).
 - **`wordcount.ijs`** uses `+/ @ (' ' = ])` (was using `+/ 1 2 3 4 5`
   fallback in v0.2).
+
+### What's new in v0.4
+
+- **MDL cost + grammar induction** (`src/mdl.ijs`). Implements the
+  SPEC §8 sketch: a per-opcode grammar cost plus a per-char data
+  cost gives a real `mdlScore`. `grammarInduce` does a frequency
+  count of structurally-identical sub-IRs (the "grammar" the
+  corpus is using). `mdlMinimize` uses MDL cost to pick between
+  candidate rewrites.
+- **Fixed a load-order bug** in `src/ir.ijs`: now loads `src/lex.ijs`
+  so the unparser's primitive-verb check (`v e. prims`) has
+  `PRIM_VERB`, `PRIM_ADV`, `PRIM_CONJ` in scope.
+- **`make mdl-demo`** target.
 
 Quick bootstrap tour:
 ```sh

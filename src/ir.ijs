@@ -17,6 +17,10 @@ NB.
 NB. Each IR is a single boxed value (the 1-box wrapping the triple
 NB. inside the link) that downstream code can recur on uniformly.
 NB.
+NB. Load lex.ijs first so the unparser's primitive-verb check has
+NB. PRIM_VERB, PRIM_ADV, PRIM_CONJ in scope.
+load 'src/lex.ijs'
+NB.
 NB. The Stage 0 lowerer is intentionally minimal: it walks the
 NB. AST's flat EXPR sequences and produces a chain of IR_CALL /
 NB. IR_TRAIN2 / IR_TRAIN3 nodes, applying J's right-to-left
