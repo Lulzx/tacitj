@@ -645,22 +645,32 @@ isPrimChar =: 4 : 0
   r > 0
 )
 
+NB. The set of single-char primitives plus the two-char
+NB. primitive forms. The unparser uses this to decide whether a
+NB. literal is a recognised J primitive (and so should be emitted
+NB. unquoted) or whether it's a string of characters (quoted).
+prims1 =: PRIM_VERB , PRIM_ADV , PRIM_CONJ
+prims2 =: '*:' , '%:' , '^:' , '|:' , '<:' , '>:' , '~:'
+prims2 =: prims2 , CONJ_TWO_CHAR
+
 unparseIrLit =: 3 : 0
   v =. y
-  prims =. PRIM_VERB , PRIM_ADV , PRIM_CONJ
   q =. QUOTE
   if. 2 = 3!:0 v do.
-    NB. char - if v is a single J primitive, emit as-is.
-    NB. Multi-char strings always get quoted; single primitives don't.
+    NB. Single-char primitives are emitted unquoted.
     if. 1 = # v do.
-      if. v e. prims do.
+      if. v e. prims1 do.
+        v return.
+      end.
+    end.
+    NB. Two-char primitives (*:, %:, ^:, |:, <:, >:, ~:, @:, &:, ^:)
+    NB. are also emitted unquoted.
+    if. 2 = # v do.
+      if. v e. prims2 do.
         v return.
       end.
     end.
     NB. quote the string; double any internal quotes for escape.
-    NB. Build with explicit append to avoid operator-precedence
-    NB. traps (q , body , q parses as (q , body) , q which doubles
-    NB. the right operand).
     (q , (quoteEscape v)) , q
   else.
     ": v

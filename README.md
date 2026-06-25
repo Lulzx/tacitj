@@ -352,6 +352,7 @@ tacitj/
 │   ├── pipeline.ijs    tacit composition with @
 │   ├── squares.ijs     sum-of-squares (single-line demo)
 │   ├── wordcount.ijs   tacit word counter
+│   ├── rank.ijs        2-char conjunctions (@:, &:)
 │   └── fib.ijs         golden ratio via Binet
 │
 ├── bootstrap/          Stage 1-3 self-host scripts
@@ -384,6 +385,7 @@ tacitj/
 | 5 | Multi-line programs (LF = sentence boundary) + 2-char verbs (`*:`, `%:`, `^:`, `\|:`, `<:`, `>:`) | ✅ done |
 | 6 | Identity functions (`]`, `[`), `~:`, and 2-char `~:`; works with `@` composition | ✅ done |
 | 7 | MDL cost + Solon-style grammar induction (SPEC §8) | ✅ done |
+| 8 | 2-char conjunctions (`@:`, `&:`, `^:`) — rank-preserving composition | ✅ done |
 
 ### Bootstrap stages
 
@@ -403,7 +405,8 @@ The Stage 0 lexer/parser recognises:
 - **Verbs (two char)**: `*: %: ^: |: <: >: ~:` (square, root, log,
   reverse, increment, decrement, not-equal)
 - **Adverbs**: `/ \ ~ . :`  (insert, prefix/suffix, reflexive, etc.)
-- **Conjunctions**: `@ & ^ !`  (atop, bond, power, fit)
+- **Conjunctions (single char)**: `@ & ^ !`  (atop, bond, power, fit)
+- **Conjunctions (two char)**: `@: &: ^:` (atop/bond/power with rank)
 - **Assignment**: `=:`
 - **Literals**: numbers, single-quoted strings (with `''` escape)
 - **Parens**: `( expr )` for grouping
@@ -475,6 +478,21 @@ MDL minimizer (each corpus IR):
   so the unparser's primitive-verb check (`v e. prims`) has
   `PRIM_VERB`, `PRIM_ADV`, `PRIM_CONJ` in scope.
 - **`make mdl-demo`** target.
+
+### What's new in v0.5
+
+- **2-char conjunctions**: `@:` (atop with rank), `&:` (bond with
+  rank), `^:` (power with rank). These were always in J but the
+  Stage 0 lexer previously emitted them as a single-char + `:`
+  (e.g. `@` then `:`), causing them to be quoted in the unparse
+  output and rejected by J.
+- **Unparser fix**: `unparseIrLit` now knows about all the 2-char
+  primitives (verbs and conjunctions) so they round-trip cleanly
+  through `compile` / `emitIr`.
+- **`examples/rank.ijs`**: shows `+/ @: *:` style rank-preserving
+  composition. Sums the squares of 1..5 = 55.
+- **New lexer tests**: `@:`, `&:`, `^:` as T_CONJ tokens (in
+  `tests/test_lex.ijs`).
 
 Quick bootstrap tour:
 ```sh

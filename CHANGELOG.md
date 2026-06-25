@@ -197,3 +197,37 @@ MDL cost + Solon-style grammar induction land.
 - `make stage0`, `make stage3-attempt`, `make bench` all still pass.
 
 [0.4.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.4.0
+
+## [0.5.0] - 2026-06-25
+
+Two-char conjunctions land.
+
+### Added
+
+- **2-char conjunctions**: `@:` (atop with rank), `&:` (bond with
+  rank), `^:` (power with rank). Same lexer pattern as the
+  2-char verbs (added in v0.2). `src/lex.ijs` introduces
+  `CONJ_TWO_CHAR` as a constant.
+- **Unparser fix**: `unparseIrLit` in `src/ir.ijs` now treats the
+  2-char primitives (`*:`, `%:`, `^:`, `|:`, `<:`, `>:`,
+  `~:`, `@:`, `&:`, `^:`) as unquoted primitives instead of
+  string literals.
+- **`examples/rank.ijs`**: shows `+/ @: *:` style composition.
+  Result: `sumSquares 1 2 3 4 5` = 55.
+- **New tests in `tests/test_lex.ijs`** for `@:`, `&:`, `^:` as
+  T_CONJ tokens.
+
+### Notes
+
+The `^:` check in the lexer has to run **before** the 2-char verb
+check (which is checked before the single-char verb check) — `^`
+is in `PRIM_VERB`, so without ordering it, `^:` would be
+classified as a 2-char verb. By checking conjunctions first, the
+classification is correct.
+
+### Verified
+
+- `make test` -> 116 passed, 0 failed (was 105).
+- `make run EXAMPLE=examples/rank.ijs` -> 55.
+
+[0.5.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.5.0

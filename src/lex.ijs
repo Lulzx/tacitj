@@ -34,6 +34,10 @@ DIGITS    =: '0123456789'
 PRIM_VERB =: '+-*%^=<>|&~;,$#?![]'
 PRIM_ADV  =: '/\~.:'
 PRIM_CONJ =: '@&^!'
+
+NB. Two-char conjunctions: @: (atop with rank), &: (bond with rank),
+NB. ^: (power with rank). Same pattern as the two-char verbs.
+CONJ_TWO_CHAR =: '@:&:^:'
 WS_CHARS  =: ' ' , TAB , CR , LF
 QUOTE     =: ''''
 
@@ -340,6 +344,12 @@ lexOne =: 3 : 0
     ((<T_STR) ; <raw) ; endP
   elseif. (c = '=') *. ((p + 1) < lim) *. (((p + 1) { src) -: ':') do.
     ((<T_ASSIGN) ; <,'=:'); p + 2
+  elseif. (c e. CONJ_TWO_CHAR) *. ((p + 1) < lim) *. ((p + 1) { src) = ':' do.
+    NB. Two-char conjunction: @: (atop w/ rank), &: (bond w/ rank),
+    NB. ^: (power w/ rank). Checked BEFORE the verb list because
+    NB. `^` is in PRIM_VERB and would otherwise be classified as
+    NB. a 2-char verb (`^:` is a modifier in J, not a verb).
+    ((<T_CONJ) ; <(c , ':')) ; (>: >: p)
   elseif. (c e. ('*' , '%' , '^' , '|' , '<' , '>' , '~')) *. ((p + 1) < lim) *. ((p + 1) { src) = ':' do.
     NB. Two-char verb: *: %: ^: |: <: >: ~: (square, root, log, reverse,
     NB. increment, decrement, not-equal).

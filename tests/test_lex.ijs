@@ -103,4 +103,36 @@ toks =. lex '+/ % #'
 check (tokType 0 { toks) ; T_VERB ; <'first + in +/ % #'
 check (tokType 2 { toks) ; T_VERB ; <'third # in +/ % #'
 
+NB. --- 2-char verbs -----------------------------------------
+
+NB. *: is a single 2-char verb token (not * then :)
+toks2 =. lex '*: 1 2 3'
+check (# toks2) ; 5 ; <'lex *:: 5 tokens'
+
+NB. ~: is a single 2-char verb token
+toks3 =. lex '~: 1 2 3'
+check (# toks3) ; 5 ; <'lex ~:: 5 tokens'
+
+NB. --- 2-char conjunctions (added in v0.5) -----------------
+
+NB. @: is a single 2-char conjunction token (not @ then :)
+toks4 =. lex '+/ @: *: 1 2 3'
+NB. Expected tokens: +, /, @:, *:, 1, 2, 3, EOF = 8
+check (# toks4) ; 8 ; <'lex @:: 8 tokens'
+check (tokType 2 { toks4) ; T_CONJ ; <'lex @:: T_CONJ at index 2'
+check (tokValue 2 { toks4) ; '@:'; <'lex @:: value is @:'
+
+NB. &: is a single 2-char conjunction token
+toks5 =. lex '+/ &: *: 1 2 3'
+check (# toks5) ; 8 ; <'lex &:: 8 tokens'
+check (tokType 2 { toks5) ; T_CONJ ; <'lex &:: T_CONJ at index 2'
+check (tokValue 2 { toks5) ; '&:'; <'lex &:: value is &:'
+
+NB. ^: is a single 2-char conjunction token
+toks6 =. lex '2 ^: 3'
+NB. Expected tokens: 2, ^:, 3, EOF = 4
+check (# toks6) ; 4 ; <'lex ^:: 4 tokens'
+check (tokType 1 { toks6) ; T_CONJ ; <'lex ^:: T_CONJ at index 1'
+check (tokValue 1 { toks6) ; '^:'; <'lex ^:: value is ^:'
+
 
