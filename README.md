@@ -500,6 +500,7 @@ tacitj/
 | 16 | `examples/poly.ijs` — polynomial evaluation | ✅ done |
 | 17 | `examples/sort.ijs` — sorting and deduplication | ✅ done |
 | 18 | README tutorial: "Writing TacitJ programs" reference | ✅ done |
+| 19 | `bench/smoke_all.ijs` + `make smoke-all` — run every example | ✅ done |
 
 ### Bootstrap stages
 
@@ -762,6 +763,17 @@ MDL minimizer (each corpus IR):
 
   Serves as both a learning aid for new users and a
   quick-reference for the language.
+
+### What's new in v0.15
+
+- **`bench/smoke_all.ijs`** — runs every example and reports
+  pass/fail. Uses `smokeOne each EXAMPLES` to invoke each
+  script via `runTacitJ` and captures whether it ran
+  without error.
+- **`make smoke-all`** target. Exits 0 if all 11 examples
+  pass, 1 otherwise. Useful as a quick "did I break any
+  examples?" check after a code change.
+- Output: `summary: 11 / 11 examples passed`.
 
 Quick bootstrap tour:
 ```sh

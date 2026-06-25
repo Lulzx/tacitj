@@ -519,3 +519,26 @@ quick-reference for the language.
   and examples are accurate.
 
 [0.14.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.14.0
+
+## [0.15.0] - 2026-06-25
+
+Smoke-test runner for all examples.
+
+### Added
+
+- **`bench/smoke_all.ijs`** — runs every example and reports
+  pass/fail. Uses `smokeOne each EXAMPLES` to invoke each
+  script via `runTacitJ` and captures whether it ran
+  without error. Exits 0 if all pass, 1 otherwise.
+- **`make smoke-all`** target — runs `bench/smoke_all.ijs`.
+- All 11 examples (`hello`, `mean`, `train`, `pipeline`,
+  `wordcount`, `fib`, `rank`, `matrix`, `stats`, `poly`,
+  `sort`) currently pass.
+
+### Verified
+
+- `make test` -> 132 passed, 0 failed.
+- `make verify` -> 10 / 10.
+- `make smoke-all` -> 11 / 11 examples passed.
+
+[0.15.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.15.0
