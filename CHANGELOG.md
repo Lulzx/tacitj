@@ -573,3 +573,22 @@ Prefix sums example.
 - `make verify` -> 10 / 10.
 
 [0.16.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.16.0
+
+## [0.17.0] - 2026-06-25
+
+`make ci` combined CI gate.
+
+### Added
+
+- **`make ci`** — runs `test` + `verify` + `smoke-all` in
+  sequence. Exits non-zero if any sub-target fails.
+  Useful as a single-command CI invocation.
+
+### Verified
+
+- `make ci` -> all three checks pass:
+  - `make test` -> 132 passed, 0 failed.
+  - `make verify` -> 10 / 10.
+  - `make smoke-all` -> 12 / 12 examples passed.
+
+[0.17.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.17.0

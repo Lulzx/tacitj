@@ -16,7 +16,7 @@ EXAMPLE_DIR:= examples
 SRCS  := $(wildcard $(SRC_DIR)/*.ijs)
 TESTS := $(wildcard $(TEST_DIR)/*.ijs)
 
-.PHONY: all test smoke run clean install-j help stage0 stage1 stage2 stage3 stage3-attempt bootstrap selfhost bench mdl-demo trace verify smoke-all
+.PHONY: all test smoke run clean install-j help stage0 stage1 stage2 stage3 stage3-attempt bootstrap selfhost bench mdl-demo trace verify smoke-all ci
 
 all: test
 
@@ -37,6 +37,7 @@ help:
 	@echo "  make trace        - run the pipeline-trace demo"
 	@echo "  make verify       - bootstrap determinism / env-bleed check"
 	@echo "  make smoke-all    - run every example as a smoke test"
+	@echo "  make ci           - run test + verify + smoke-all (CI gate)"
 	@echo "  make clean        - remove build artifacts"
 
 install-j:
@@ -98,6 +99,9 @@ verify: install-j
 
 smoke-all: install-j
 	$(JC) $(JFLAGS) bench/smoke_all.ijs
+
+ci: test verify smoke-all
+	@echo "ci: all checks passed"
 
 clean:
 	rm -f *.ijx *.ijb

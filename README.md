@@ -503,6 +503,7 @@ tacitj/
 | 18 | README tutorial: "Writing TacitJ programs" reference | ✅ done |
 | 19 | `bench/smoke_all.ijs` + `make smoke-all` — run every example | ✅ done |
 | 20 | `examples/moving.ijs` — prefix sums and Stieltjes prefix | ✅ done |
+| 21 | `make ci` — combined test + verify + smoke-all gate | ✅ done |
 
 ### Bootstrap stages
 
@@ -793,6 +794,17 @@ MDL minimizer (each corpus IR):
 - **`bench/smoke_all.ijs`** updated to include
   `examples/moving.ijs`. `make smoke-all` now runs 12
   examples.
+
+### What's new in v0.17
+
+- **`make ci`** — combined CI gate. Runs:
+  1. `make test` (132 unit tests)
+  2. `make verify` (10 bootstrap determinism checks)
+  3. `make smoke-all` (12 examples)
+
+  All three must pass for `make ci` to succeed. Exits
+  non-zero on any failure, with the failing target's output
+  preserved. Useful as a single-command CI invocation.
 
 Quick bootstrap tour:
 ```sh
