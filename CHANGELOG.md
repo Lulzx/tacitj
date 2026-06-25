@@ -489,3 +489,33 @@ Sorting and deduplication example.
   correct.
 
 [0.13.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.13.0
+
+## [0.14.0] - 2026-06-25
+
+Writing TacitJ programs tutorial.
+
+### Added
+
+- **README tutorial: "4. Writing TacitJ programs"** — a
+  comprehensive quick-reference for the language subset:
+  - **Verbs table**: every supported verb with a runnable
+    example (24 entries covering arithmetic, comparison,
+    reshape, transpose, modulo, etc.).
+  - **Adverbs table**: insert, prefix, nub, nub-sieve,
+    grade up/down, sort up/down (8 entries).
+  - **Conjunctions table**: atop, bond, power (5 entries
+    including rank variants).
+  - **Forks and hooks**: explanation with the canonical
+    mean example (`+/ % #`) and the hook caveat.
+  - **Reading list**: links to all 8 working examples.
+
+This serves as both a learning aid for new users and a
+quick-reference for the language.
+
+### Verified
+
+- `make test` -> 132 passed, 0 failed.
+- README renders correctly; tutorial tables are aligned
+  and examples are accurate.
+
+[0.14.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.14.0
