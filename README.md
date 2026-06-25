@@ -362,6 +362,7 @@ tacitj/
 │   ├── matrix.ijs      2D-array operations
 │   ├── stats.ijs       statistical functions (mean, var, stddev, range)
 │   ├── poly.ijs        polynomial evaluation (powers + inner product)
+│   ├── sort.ijs        sorting and deduplication
 │   └── fib.ijs         golden ratio via Binet
 │
 ├── bootstrap/          Stage 1-3 self-host scripts
@@ -408,6 +409,7 @@ tacitj/
 | 14 | `examples/stats.ijs` — statistical functions library | ✅ done |
 | 15 | Lexer: recognise `=.` as T_ASSIGN (was tokenising as `=` + `.`) | ✅ done |
 | 16 | `examples/poly.ijs` — polynomial evaluation | ✅ done |
+| 17 | `examples/sort.ijs` — sorting and deduplication | ✅ done |
 
 ### Bootstrap stages
 
@@ -631,6 +633,27 @@ MDL minimizer (each corpus IR):
   `p(3) = 142`. The example documents the current subset
   limitation: no looping constructs, so each evaluation
   point is a separate expression.
+
+### What's new in v0.13
+
+- **`examples/sort.ijs`** — sorting and deduplication:
+  - `/:~ y` ascending sort
+  - `\:~ y` descending sort
+  - `/: y` grade up (sort indices)
+  - `\: y` grade down
+  - `~. y` nub (unique elements, first-occurrence order)
+  - `~: y` nub sieve (1 = first occurrence)
+  - Pair sorting by key: `pairs /: /: 0 { pairs`
+  - Output on `5 2 8 1 9 3 2 7 1 4 5 8`:
+    - asc = `1 1 2 2 3 4 5 5 7 8 8 9`
+    - desc = `9 8 8 7 5 5 4 3 2 2 1 1`
+    - unique = `5 2 8 1 9 3 7 4`
+    - n dups = 4
+    - n uniq = 8
+
+  Documents the subset limitation that inner-product
+  `+/ . =` is not currently tokenised, so per-element
+  counts are hand-computed.
 
 Quick bootstrap tour:
 ```sh

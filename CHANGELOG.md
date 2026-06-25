@@ -450,3 +450,42 @@ Lexer fix for `=.` and polynomial example.
   (lexer fix didn't regress anything).
 
 [0.12.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.12.0
+
+## [0.13.0] - 2026-06-25
+
+Sorting and deduplication example.
+
+### Added
+
+- **`examples/sort.ijs`** — sorting and deduplication. Demonstrates:
+  - `/:~ y` (sort up), `\:~ y` (sort down)
+  - `/: y` (grade up), `\: y` (grade down)
+  - `~. y` (nub)
+  - `~: y` (nub sieve)
+  - Pair sorting by key (using grade + index)
+
+  Output on `5 2 8 1 9 3 2 7 1 4 5 8`:
+  ```
+  asc      = 1 1 2 2 3 4 5 5 7 8 8 9
+  desc     = 9 8 8 7 5 5 4 3 2 2 1 1
+  unique   = 5 2 8 1 9 3 7 4
+  n dups   = 4
+  n uniq   = 8
+  ```
+
+### Documented
+
+- Inner-product form `+/ . =` is not currently tokenised by
+  TacitJ (the lexer treats `.` as a separate token after
+  `+/`), so per-element counts are hand-computed. This is
+  the same lexer issue that the `=.` fix in v0.12 addressed
+  but for the inner-product position. Future work could
+  recognise `+/ . =` and similar patterns as a unit.
+
+### Verified
+
+- `make test` -> 132 passed, 0 failed.
+- `make run EXAMPLE=examples/sort.ijs` -> all sort outputs
+  correct.
+
+[0.13.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.13.0
