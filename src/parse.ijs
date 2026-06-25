@@ -80,6 +80,9 @@ parseProgRec =: 3 : 0
     t0 =. tokType 0 { toks
     if. t0 = T_EOF do.
       toks =. 0 $ a:
+    elseif. t0 = T_SENT_END do.
+      NB. Skip sentence-end markers between sentences.
+      toks =. 1 }. toks
     else.
       pair =. parseSentence toks
       'sent consumed' =. pair
@@ -131,13 +134,13 @@ parseExpr =: 3 : 0
 
 NB. parseTerms: (toks) -> 2-box [<out, <toks]
 NB. Consumes a sequence of terms and operators. Stops at
-NB. T_EOF, T_RPAREN, T_ASSIGN.
+NB. T_EOF, T_RPAREN, T_ASSIGN, T_SENT_END.
 parseTerms =: 3 : 0
   toks =. y
   out =. 0 $ a:
   while. 0 < # toks do.
     t0 =. tokType 0 { toks
-    if. (t0 = T_EOF) +. (t0 = T_RPAREN) +. (t0 = T_ASSIGN) do.
+    if. (t0 = T_EOF) +. (t0 = T_RPAREN) +. (t0 = T_ASSIGN) +. (t0 = T_SENT_END) do.
       break.
     elseif. t0 = T_LPAREN do.
       pair =. parseExpr 1 }. toks

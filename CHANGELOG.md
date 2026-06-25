@@ -86,3 +86,44 @@ First public release. Stage 0 + Stage 1 + bootstrap scaffolding.
   Use the REPL or `make bench` for visible execution.
 
 [0.1.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.1.0
+
+## [0.2.0] - 2026-06-25
+
+Multi-line programs and 2-character verbs land.
+
+### Added
+
+- **Multi-line programs**: the lexer now emits a `T_SENT_END` token
+  at depth-0 LF, so `mean =: +/ % #\nmean 1 2 3 4 5` is parsed as
+  two separate sentences (was previously absorbed into one).
+  Updated `parseProgRec` and `parseTerms` to handle `T_SENT_END`.
+- **2-character verbs**: `*:`, `%:`, `^:`, `|:`, `<:`, `>:` are now
+  single tokens (used to be split into verb+adv pairs).
+- **`make run EXAMPLE=...` actually runs the file**: tacitj.ijs now
+  parses ARGV and runs any extra file paths via `runFile`. All
+  examples now print results to stdout.
+- **`bootstrap/stage3_attempt.ijs` actually compiles the
+  examples**: now reports `5 / 5 examples compiled` (was previously
+  skipped due to the multi-line parser bug).
+- New tests in `tests/test_parse.ijs`:
+  - `lex multi-line: 8 tokens (with SENT_END)`
+  - `lowerIr: multi-line has 2 stmts`
+  - `lowerIr: single-line -> 1 stmt`
+  - `lex: blank-line LFs still split once`
+
+### Changed
+
+- README: roadmap shows Week 5 done; bootstrap stages updated;
+  What's-new section added.
+- AGENTS.md: still references CHANGELOG.md.
+- `make stage3-attempt` now produces a real per-file output.
+
+### Fixed
+
+- The `0!:1`/`0!:101` VOID-return workaround in `src/eval.ijs`
+  was kept (multi-line still requires explicit `smoutput` for
+  visible output).
+- Examples updated to use `smoutput` and the Stage 0 subset
+  (no `@`, `@:`, `~:`, etc.).
+
+[0.2.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.2.0

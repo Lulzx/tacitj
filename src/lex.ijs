@@ -19,12 +19,13 @@ T_VERB   =: 1
 T_ADV    =: 2
 T_CONJ   =: 3
 T_NUM    =: 4
-T_STR    =: 5
-T_LPAREN =: 6
-T_RPAREN =: 7
-T_ASSIGN =: 8
-T_EOF    =: 9
-T_BAD    =: _1
+T_STR     =: 5
+T_LPAREN  =: 6
+T_RPAREN  =: 7
+T_ASSIGN  =: 8
+T_EOF     =: 9
+T_SENT_END=: 10
+T_BAD     =: _1
 
 NB. --- Character sets --------------------------------------
 ALPHA     =: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -37,7 +38,11 @@ WS_CHARS  =: ' ' , TAB , CR , LF
 QUOTE     =: ''''
 
 NB. Token-type labels (for diagnostics)
-T_LABELS =: 'NAME';'VERB';'ADV';'CONJ';'NUM';'STR';'LPAREN';'RPAREN';'ASSIGN';'EOF';'BAD'
+T_LABELS =: 'NAME';'VERB';'ADV';'CONJ';'NUM';'STR';'LPAREN';'RPAREN';'ASSIGN';'EOF';'SENT';'BAD'
+
+NB. Sentinels for sentence-end and end-of-input.
+SENT_END =: T_SENT_END
+EOF_CODE =: T_EOF
 
 NB. --- Comment stripping -----------------------------------
 
@@ -249,20 +254,69 @@ NB. --- Top-level lexer -------------------------------------
 
 NB. lex: tokenise source char vector y.
 NB. Returns a boxed vector of tokens. Last token is always T_EOF.
+NB.
+NB. Sentence boundaries: at depth 0 (paren-balanced), a line
+NB. feed (LF) ends a sentence. The lexer emits a T_SENT_END
+NB. token between sentences. T_SENT_END is only emitted when
+NB. the line has at least one token (i.e. not for blank lines
+NB. or comment-only lines), and only when followed by another
+NB. token on a later line.
 lex =: 3 : 0
   src =. stripComments y
   src =. src , LF              NB. sentinel newline to flush trailing token
   toks =. 0 $ a:               NB. empty boxed list (0-element)
   p   =. 0
   lim =. # src
+  depth =. 0                   NB. paren depth for sentence boundaries
+  lineHasTok =. 0              NB. did the current line have any token?
   while. p < lim do.
     c =. p { src
-    if. c e. WS_CHARS do.
+    if. c = '(' do.
+      toks =. toks , <((<T_LPAREN) ; <'(')
+      lineHasTok =. 1
+      depth =. >: depth
+      p =. >: p
+    elseif. c = ')' do.
+      toks =. toks , <((<T_RPAREN) ; <')')
+      lineHasTok =. 1
+      depth =. <: depth
+      p =. >: p
+    elseif. c = LF do.
+      NB. End-of-sentence marker at depth 0, only if this
+      NB. line had at least one token AND the line after has
+      NB. one too (otherwise it's trailing whitespace / EOF).
+      if. (depth = 0) *. lineHasTok do.
+        NB. peek past whitespace for the next non-WS char.
+        NB. Use a guarded loop (test bound first) to avoid the
+        NB. `*.` short-circuit pitfall.
+        q =. >: p
+        while. q < lim do.
+          if. (q { src) e. (TAB , ' ' , CR) do.
+            q =. >: q
+          else.
+            break.
+          end.
+        end.
+        NB. Only emit SENT_END if there's a non-LF token after.
+        if. q < lim do.
+          nc =. q { src
+          if. nc -. LF do.
+            toks =. toks , <((<T_SENT_END) ; <LF)
+          end.
+        end.
+      end.
+      lineHasTok =. 0
+      p =. >: p
+    elseif. c e. (TAB , ' ' , CR) do.
       p =. >: p
     else.
       'tok endP' =. lexOne (p ; src)
       toks =. toks , <tok
       p =. endP
+      lineHasTok =. 1
+      t0 =. tokType <tok
+      if. t0 = T_LPAREN do. depth =. >: depth end.
+      if. t0 = T_RPAREN do. depth =. <: depth end.
     end.
   end.
   toks , <((<T_EOF) ; <'')
@@ -286,6 +340,9 @@ lexOne =: 3 : 0
     ((<T_STR) ; <raw) ; endP
   elseif. (c = '=') *. ((p + 1) < lim) *. (((p + 1) { src) -: ':') do.
     ((<T_ASSIGN) ; <,'=:'); p + 2
+  elseif. (c e. ('*' , '%' , '^' , '|' , '<' , '>')) *. ((p + 1) < lim) *. ((p + 1) { src) = ':' do.
+    NB. Two-char verb: *: %: ^: |: <: >: (square, root, log, etc.)
+    ((<T_VERB) ; <(c , ':')) ; (>: >: p)
   elseif. c e. PRIM_VERB do.
     ((<T_VERB) ; <,c) ; (>: p)
   elseif. c e. PRIM_ADV do.

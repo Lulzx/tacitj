@@ -43,6 +43,27 @@ runFile =: 3 : 0
   runTacitJ src
 )
 
+NB. runArgv: if any extra argv (passed as file path) is given,
+NB. run that file via runFile. ARGV for `jconsole tacitj.ijs file.ijs`
+NB. has 3 elements: [jconsole-path, tacitj.ijs-path, file.ijs-path].
+NB. So extra args (after the first two) are the ones we want.
+runArgv =: 3 : 0
+  args =. ARGV
+  if. 2 < # args do.
+    NB. Run each extra arg
+    i =. 2
+    while. i < # args do.
+      a =. > i { args
+      if. fexist a do.
+        smoutput 'running: ' , a
+        runFile a
+      end.
+      i =. >: i
+    end.
+  end.
+  EMPTY
+)
+
 NB. repl: minimal read-eval-print loop.
 repl =: 3 : 0
   smoutput 'TacitJ REPL. Press Ctrl-D to exit.'
@@ -56,3 +77,7 @@ repl =: 3 : 0
 )
 
 smoutput 'TacitJ loaded.'
+
+NB. If invoked with a script argument (e.g. `jconsole tacitj.ijs file.ijs`),
+NB. run that file. Otherwise just print the banner.
+runArgv ''

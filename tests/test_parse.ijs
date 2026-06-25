@@ -44,24 +44,36 @@ assert (compile '( 10 - 5 )') ; 5 ; <'compile: ( 10 - 5 ) = 5'
 
 NB. --- splitOnLF: correct line splitting ----------------------
 
-NB. LF is whitespace in J, so 'a =: 1  LFb =: 2' is one sentence.
-NB. splitOnLF strips trailing spaces (via stripLines/stripComment), so
-NB. the trailing space in 'a =: 1 ' is removed, making '1' part of
-NB. the expression: expr = '1 LFb' -> NUM(1), NAME(b) (both terms).
-NB. Tokens: NAME(a), ASSIGN, NUM(1), NAME(b), ASSIGN, NUM(2), EOF = 7.
-NB. (The '1' is kept because stripLines strips trailing spaces, not
-NB. trailing alphanumeric chars.)
+NB. LF at depth 0 ends a sentence (a T_SENT_END is emitted).
+NB. So 'a =: 1  LFb =: 2' becomes two sentences: the lexer
+NB. emits NAME, ASSIGN, NUM, SENT_END, NAME, ASSIGN, NUM, EOF
+NB. = 8 tokens.
 resetOptEnv ''
 src =. 'a =: 1 ' , LF , 'b =: 2'
 toks =. lex src
-assert (# toks) ; 7 ; <'lex multi-line: 7 tokens'
+assert (# toks) ; 8 ; <'lex multi-line: 8 tokens (with SENT_END)'
 
 NB. --- Multi-line through IR pipeline ------------------------
 
-NB. 'x =: 5 LF x + 1' is ONE sentence in J (LF = whitespace).
-NB. The expr is 'x =: 5 x + 1' which reduces to a single assignment.
+NB. 'x =: 5 LF x + 1' is now TWO sentences: the lexer inserts
+NB. a sentence-end marker between them, so the parser produces
+NB. two top-level stmts (one assignment + one bare expression).
 resetOptEnv ''
 prog2 =. lowerIr semAnalyze parseProgram lex ('x =: 5' , LF , 'x + 1')
 assert (irOp prog2) ; IR_PROG ; <'lowerIr: multi-line -> IR_PROG'
-NB. Exactly 1 statement (one assignment; x + 1 is the RHS expression)
-assert (# > irArgs prog2) ; 1 ; <'lowerIr: multi-line has 1 stmt'
+NB. Exactly 2 statements (one assignment + one expression)
+assert (# > irArgs prog2) ; 2 ; <'lowerIr: multi-line has 2 stmts'
+
+NB. Single-line programs are still one sentence (no SENT_END).
+resetOptEnv ''
+prog3 =. lowerIr semAnalyze parseProgram lex '2 + 3'
+assert (# > irArgs prog3) ; 1 ; <'lowerIr: single-line -> 1 stmt'
+
+NB. A bare LF at depth 0 (blank line) does NOT emit SENT_END.
+NB. Tabs/spaces between tokens are still just whitespace.
+resetOptEnv ''
+src4 =. '2 + 3' , LF , LF , '4 * 5'
+toks4 =. lex src4
+NB. 6 tokens: NUM, VERB, NUM, SENT_END, NUM, VERB, NUM, EOF = 8
+NB. Actually only one SENT_END between the non-blank lines.
+assert (# toks4) ; 8 ; <'lex: blank-line LFs still split once'

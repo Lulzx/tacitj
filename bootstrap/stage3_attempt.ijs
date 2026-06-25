@@ -139,16 +139,31 @@ stage3Run =: 3 : 0
   smoutput ''
 
   smoutput '--- self-host attempt on examples (TacitJ subset) ---'
-  NB. SKIPPED: Stage 0 parser doesn't yet handle the multi-line
-  NB. + assignment patterns in our examples. Fixing this is
-  NB. the next step on the path to true Stage 3 self-host.
-  smoutput '  (skipped: see bootstrap/stage3_attempt.ijs)'
+  NB. Each example is read, compiled via Stage 0, and the
+  NB. emitted source is checked for non-empty output (a
+  NB. crude smoke test that the file is a valid TacitJ
+  NB. program).
+  paths =. <'/Users/lulzx/work/jinj/examples/mean.ijs'
+  paths =. paths , <'/Users/lulzx/work/jinj/examples/squares.ijs'
+  paths =. paths , <'/Users/lulzx/work/jinj/examples/wordcount.ijs'
+  paths =. paths , <'/Users/lulzx/work/jinj/examples/fib.ijs'
+  paths =. paths , <'/Users/lulzx/work/jinj/examples/hello.ijs'
+  i =. 0
+  ok =. 0
+  total =. # paths
+  while. i < # paths do.
+    p =. > i { paths
+    'rc detail' =. selfHostFile p
+    smoutput '  ' , p
+    smoutput '    ' , detail
+    if. rc = 0 do. ok =. >: ok end.
+    i =. >: i
+  end.
   smoutput ''
   smoutput '--- summary ---'
   smoutput '  canary: ' , (": selfhost3 '') , ' (1=OK, 0=MISMATCH)'
   smoutput '  round-trips: 3/3 OK on small canaries'
-  smoutput '  file-level: TODO (parser doesn''t yet handle the'
-  smoutput '             full J subset in examples/*.ijs)'
+  smoutput '  file-level: ' , (": ok) , ' / ' , (": total) , ' examples compiled'
   smoutput ''
   smoutput 'done.'
   rc =. 0

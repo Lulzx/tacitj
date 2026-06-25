@@ -381,6 +381,7 @@ tacitj/
 | 2 | IR + Optimizer + tacit rewrite engine + Solon stub | ✅ done |
 | 3 | Codegen + Stage 1–3 bootstrap scripts + full test suite | ✅ done |
 | 4 | Polish, benchmarks, docs, v0.1 release | ✅ done |
+| 5 | Multi-line programs (LF = sentence boundary) + 2-char verbs (`*:`, `%:`, `^:`, `\|:`, `<:`, `>:`) | ✅ done |
 
 ### Bootstrap stages
 
@@ -395,8 +396,23 @@ tacitj/
 `make stage3-attempt` runs `bootstrap/stage3_attempt.ijs`, which:
 - re-checks the Stage 0 canary (`( 1 + 2 )|9`)
 - verifies that 3 small canaries are fixed points (compile-emit-recompile == compile-emit)
-- reports the current status of file-level self-host (TODO: parser
-  doesn't yet handle the full J subset in `examples/*.ijs`).
+- compiles all 5 examples through Stage 0 (5/5 OK).
+
+### What's new in v0.2
+
+- **Multi-line programs work**: the lexer now emits a `T_SENT_END`
+  token at depth-0 LF, so `mean =: +/ % #\nmean 1 2 3 4 5` is two
+  separate sentences. Previously, LF was just whitespace and the
+  parser absorbed both lines into one.
+- **2-character verbs are recognised**: `*:`, `%:`, `^:`, `|:`, `<:`,
+  `>:` are now single tokens (used to be split into verb+adverb).
+- **`make run EXAMPLE=...` actually runs the file**: tacitj.ijs now
+  parses ARGV and runs any extra file paths via `runFile`. The
+  examples print their results to stdout.
+
+Known limitations: `@`, `@:`, `~:`, `\:`, `]`, `[` are not yet
+parsed; `wordcount.ijs` documents this and falls back to a
+simpler demo.
 
 Quick bootstrap tour:
 ```sh
