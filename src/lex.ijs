@@ -31,7 +31,7 @@ NB. --- Character sets --------------------------------------
 ALPHA     =: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 NAME_CONT =: ALPHA , '0123456789_'
 DIGITS    =: '0123456789'
-PRIM_VERB =: '+-*%^=<>|&~;,$#?!'
+PRIM_VERB =: '+-*%^=<>|&~;,$#?![]'
 PRIM_ADV  =: '/\~.:'
 PRIM_CONJ =: '@&^!'
 WS_CHARS  =: ' ' , TAB , CR , LF
@@ -340,8 +340,9 @@ lexOne =: 3 : 0
     ((<T_STR) ; <raw) ; endP
   elseif. (c = '=') *. ((p + 1) < lim) *. (((p + 1) { src) -: ':') do.
     ((<T_ASSIGN) ; <,'=:'); p + 2
-  elseif. (c e. ('*' , '%' , '^' , '|' , '<' , '>')) *. ((p + 1) < lim) *. ((p + 1) { src) = ':' do.
-    NB. Two-char verb: *: %: ^: |: <: >: (square, root, log, etc.)
+  elseif. (c e. ('*' , '%' , '^' , '|' , '<' , '>' , '~')) *. ((p + 1) < lim) *. ((p + 1) { src) = ':' do.
+    NB. Two-char verb: *: %: ^: |: <: >: ~: (square, root, log, reverse,
+    NB. increment, decrement, not-equal).
     ((<T_VERB) ; <(c , ':')) ; (>: >: p)
   elseif. c e. PRIM_VERB do.
     ((<T_VERB) ; <,c) ; (>: p)

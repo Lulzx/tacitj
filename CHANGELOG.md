@@ -127,3 +127,35 @@ Multi-line programs and 2-character verbs land.
   (no `@`, `@:`, `~:`, etc.).
 
 [0.2.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.2.0
+
+## [0.3.0] - 2026-06-25
+
+More Stage 0 subset — identity functions, `~:`, working `@`.
+
+### Added
+
+- **Identity functions `]` and `[`** added to `PRIM_VERB`. Used in
+  hooks (`0 , ]`), forks (`' ' = ]`), and the identity-of-y pattern.
+- **`~:` (not-equal)** is now a single 2-char token. Same pattern
+  as `*:`, `%:`, `^:`, `|:`, `<:`, `>:`.
+- **`@` (atop) verified working** end-to-end. Was already in
+  `PRIM_CONJ` but no example exercised it.
+
+### Changed
+
+- **`examples/mean.ijs`** restored to use `*: @ mean` (was using
+  the `mean * mean` workaround in v0.2).
+- **`examples/wordcount.ijs`** uses `+/ @ (' ' = ])` for
+  count-of-spaces (was using `+/ 1 2 3 4 5` fallback in v0.2).
+  Result: `wordCount 'the quick brown fox'` -> `4`.
+- **README** adds a "Stage 0 language subset" section listing
+  exactly which verbs/adverbs/conjunctions are supported.
+
+### Known limitations (next up)
+
+- `@:` (compose with rank)
+- `~:/\ ` (not-equal scan) and `\: ` (suffix) — these adverbs are
+  not yet in `PRIM_ADV`.
+- `2 ~:/\ ]` style scans (need both `~:/\` and `]` working).
+
+[0.3.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.3.0
