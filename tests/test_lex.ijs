@@ -77,6 +77,10 @@ check (tokType 0 { lex ')') ; T_RPAREN ; <'rparen'
 
 NB. Assignment
 check (tokType 0 { lex '=:') ; T_ASSIGN ; <'assign =:'
+check (tokType 0 { lex '=.') ; T_ASSIGN ; <'assign =.'
+NB. The token's value should preserve the original form.
+check (tokValue 0 { lex '=.') ; '=.' ; <'assign =. preserves the form'
+check (tokValue 0 { lex '=:') ; '=:' ; <'assign =: preserves the form'
 
 NB. String literal
 toks =. lex '''hello'''

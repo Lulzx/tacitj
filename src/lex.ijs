@@ -342,8 +342,11 @@ lexOne =: 3 : 0
     body =. ((>: p) }. (<: endP) {. src)
     raw  =. collapseDoubledQuotes body
     ((<T_STR) ; <raw) ; endP
-  elseif. (c = '=') *. ((p + 1) < lim) *. (((p + 1) { src) -: ':') do.
-    ((<T_ASSIGN) ; <,'=:'); p + 2
+  elseif. (c = '=') *. ((p + 1) < lim) *. (((p + 1) { src) e. ':' , '.') do.
+    NB. Two-char assignment: =: (coassignment) and =. (assignment).
+    NB. Both form a single T_ASSIGN token. Checked here so the
+    NB. leading `=` isn't classified as a PRIM_VERB.
+    ((<T_ASSIGN) ; <(c , ((p + 1) { src))); p + 2
   elseif. (c e. CONJ_TWO_CHAR) *. ((p + 1) < lim) *. ((p + 1) { src) = ':' do.
     NB. Two-char conjunction: @: (atop w/ rank), &: (bond w/ rank),
     NB. ^: (power w/ rank). Checked BEFORE the verb list because

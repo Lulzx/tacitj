@@ -361,6 +361,7 @@ tacitj/
 │   ├── rank.ijs        2-char conjunctions (@:, &:)
 │   ├── matrix.ijs      2D-array operations
 │   ├── stats.ijs       statistical functions (mean, var, stddev, range)
+│   ├── poly.ijs        polynomial evaluation (powers + inner product)
 │   └── fib.ijs         golden ratio via Binet
 │
 ├── bootstrap/          Stage 1-3 self-host scripts
@@ -405,6 +406,8 @@ tacitj/
 | 12 | `examples/matrix.ijs` — 2D-array operations demo | ✅ done |
 | 13 | Bootstrap determinism / env-bleed verification (`bench/verify.ijs`) | ✅ done |
 | 14 | `examples/stats.ijs` — statistical functions library | ✅ done |
+| 15 | Lexer: recognise `=.` as T_ASSIGN (was tokenising as `=` + `.`) | ✅ done |
+| 16 | `examples/poly.ijs` — polynomial evaluation | ✅ done |
 
 ### Bootstrap stages
 
@@ -611,6 +614,23 @@ MDL minimizer (each corpus IR):
   `(x - mean x)`. The workaround is to wrap in parens
   (`(- mean)`) or use explicit compositions like
   `(/ % #) @: *: @: - mean`.
+
+### What's new in v0.12
+
+- **Lexer fix**: recognise `=.` (assignment) as a single
+  `T_ASSIGN` token. Previously the lexer would emit `=` as
+  a `T_VERB` and `.` separately, leaving the parser to
+  treat them as individual tokens. This was producing invalid
+  emitted J source like `( coefs = . 1 2 3 )` (which J
+  parses as `(= (. 1 2 3))` instead of assignment). The fix
+  extends the existing `=:` check to also accept `=.`. Both
+  forms are now tokenised as a single `T_ASSIGN` token.
+- **`examples/poly.ijs`** — polynomial evaluation. Evaluates
+  `p(x) = 1 + 2x + 3x^2 + 4x^3` at given points using
+  `+/ coefs * x ^ i. # coefs`. Output: `p(2) = 49`,
+  `p(3) = 142`. The example documents the current subset
+  limitation: no looping constructs, so each evaluation
+  point is a separate expression.
 
 Quick bootstrap tour:
 ```sh

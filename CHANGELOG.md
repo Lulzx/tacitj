@@ -412,3 +412,41 @@ Statistical functions example.
   with correct numerical values.
 
 [0.11.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.11.0
+
+## [0.12.0] - 2026-06-25
+
+Lexer fix for `=.` and polynomial example.
+
+### Fixed
+
+- **Lexer**: recognise `=.` as a single `T_ASSIGN` token.
+  Previously `=` was emitted as a `T_VERB` and `.` separately,
+  leaving the parser to combine them. The codegen was then
+  emitting invalid J source like `( coefs = . 1 2 3 )` which
+  J parses as `(= (. 1 2 3))` instead of assignment. The fix
+  extends the existing `=:` check to also accept `=.` and
+  preserves the original two chars (`=.` or `=:`) in the
+  token's value field.
+
+  Verified: `coefs =. 1 2 3` now compiles to `coefs =: 1 2 3`
+  (or `coefs =. 1 2 3` depending on input form), executes
+  correctly.
+
+### Added
+
+- **`examples/poly.ijs`** — polynomial evaluation. Evaluates
+  `p(x) = 1 + 2x + 3x^2 + 4x^3` at given points using the
+  form `+/ coefs * x ^ i. # coefs`. Output: `p(2) = 49`,
+  `p(3) = 142`. The example documents a subset limitation:
+  no looping constructs, so each evaluation point is a
+  separate expression.
+
+### Verified
+
+- `make test` -> 129 passed, 0 failed.
+- `make run EXAMPLE=examples/poly.ijs` -> prints `p(2) = 49`
+  and `p(3) = 142`.
+- `make run EXAMPLE=examples/stats.ijs` -> still works
+  (lexer fix didn't regress anything).
+
+[0.12.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.12.0
