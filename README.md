@@ -359,6 +359,7 @@ tacitj/
 │   ├── squares.ijs     sum-of-squares (single-line demo)
 │   ├── wordcount.ijs   tacit word counter
 │   ├── rank.ijs        2-char conjunctions (@:, &:)
+│   ├── matrix.ijs      2D-array operations
 │   └── fib.ijs         golden ratio via Binet
 │
 ├── bootstrap/          Stage 1-3 self-host scripts
@@ -400,6 +401,7 @@ tacitj/
 | 9 | More 2-char verbs: `<.`, `>.` (floor, ceiling) and `+:`, `-:` (increment, decrement) | ✅ done |
 | 10 | Design doc + `examples/rank.ijs` polish | ✅ done |
 | 11 | Pipeline trace demo + bench tests | ✅ done |
+| 12 | `examples/matrix.ijs` — 2D-array operations demo | ✅ done |
 
 ### Bootstrap stages
 
@@ -544,6 +546,32 @@ MDL minimizer (each corpus IR):
   the bench / MDL / trace scripts load and that the bench verbs
   (`mdlScore`, `grammarInduce`, `mdlMinimize`) can be called.
 - **`make trace` target.**
+
+### What's new in v0.9
+
+- **`examples/matrix.ijs`** — 2D-array operations. Demonstrates
+  `2 3 $ ...` reshape, row sums (`+/"1`), column sums (`+/`),
+  transpose (`|: `), outer product (`*/`), max (`>./`), and
+  ravel-based reduction (`+/ ,`). All round-trip through the
+  compiler and run end-to-end. Output:
+  ```
+  matrix:
+  1 2 3
+  4 5 6
+  sum = 21
+  row sums: 6 15
+  col sums: 5 7 9
+  transpose:
+  1 4
+  2 5
+  3 6
+  max = 6
+  mul table:
+  1 2 3
+  2 4 6
+  3 6 9
+  sum of squares = 91
+  ```
 
 Quick bootstrap tour:
 ```sh

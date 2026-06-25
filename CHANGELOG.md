@@ -317,3 +317,28 @@ Pipeline-trace demo + bench smoke tests.
   output for `mean =: +/ % #\nsmoutput mean 1 2 3 4 5`.
 
 [0.8.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.8.0
+
+## [0.9.0] - 2026-06-25
+
+2D-array operations example.
+
+### Added
+
+- **`examples/matrix.ijs`** — 2D-array operations. Demonstrates:
+  - `2 3 $ 1 2 3 4 5 6` (reshape to 2x3)
+  - `+/"1 m` (row-wise sum)
+  - `+/ m` (column-wise sum)
+  - `|: m` (transpose)
+  - `>./ , m` (max via ravel)
+  - `*/` (outer product, multiplication table)
+  - `+/ , *: m` (sum of squares via ravel)
+
+  All round-trip through the compiler and run end-to-end.
+
+### Verified
+
+- `make test` -> 128 passed, 0 failed.
+- `make run EXAMPLE=examples/matrix.ijs` -> prints the matrix,
+  sums, transpose, max, multiplication table, and sum of squares.
+
+[0.9.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.9.0
