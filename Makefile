@@ -16,7 +16,7 @@ EXAMPLE_DIR:= examples
 SRCS  := $(wildcard $(SRC_DIR)/*.ijs)
 TESTS := $(wildcard $(TEST_DIR)/*.ijs)
 
-.PHONY: all test smoke run clean install-j help stage0 stage1 stage2 stage3 stage3-attempt bootstrap selfhost bench mdl-demo
+.PHONY: all test smoke run clean install-j help stage0 stage1 stage2 stage3 stage3-attempt bootstrap selfhost bench mdl-demo trace
 
 all: test
 
@@ -34,6 +34,7 @@ help:
 	@echo "  make selfhost     - smoke-test self-compilation"
 	@echo "  make bench        - run compile/exec benchmark suite"
 	@echo "  make mdl-demo     - run the MDL / grammar-induction demo"
+	@echo "  make trace        - run the pipeline-trace demo"
 	@echo "  make clean        - remove build artifacts"
 
 install-j:
@@ -86,6 +87,9 @@ bench: install-j
 
 mdl-demo: install-j
 	$(JC) $(JFLAGS) bench/mdl_demo.ijs
+
+trace: install-j
+	$(JC) $(JFLAGS) bench/trace.ijs
 
 clean:
 	rm -f *.ijx *.ijb

@@ -81,6 +81,10 @@ smoutput '-- MDL tests --'
 load 'tests/test_mdl.ijs'
 smoutput ''
 
+smoutput '-- Bench tests --'
+load 'tests/test_bench.ijs'
+smoutput ''
+
 NB. --- Summary & exit ---------------------------------------
 
 passN =. > tpass

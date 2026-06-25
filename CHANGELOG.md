@@ -291,3 +291,29 @@ Documentation + example polish.
 - `make run EXAMPLE=examples/rank.ijs` -> prints 55.
 
 [0.7.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.7.0
+
+## [0.8.0] - 2026-06-25
+
+Pipeline-trace demo + bench smoke tests.
+
+### Added
+
+- **`bench/trace.ijs`** — pipeline-trace demo. Runs a sample
+  program through every compiler stage and prints the output
+  of each (lex tokens → AST → IR → optimized IR → emitted J
+  source → execution result). Makes the architecture visible
+  and is a debugging aid. Run via `make trace`.
+- **`tests/test_bench.ijs`** — bench smoke tests. Verifies that
+  the bench / MDL / trace scripts load, that the MDL verbs
+  (`mdlScore`, `grammarInduce`, `mdlMinimize`) are callable,
+  and that each pipeline stage produces non-empty output on
+  a fixed canary.
+- **`make trace`** target.
+
+### Verified
+
+- `make test` -> 128 passed, 0 failed (was 122).
+- `make trace` -> prints lex / parse / IR / opt / emit / exec
+  output for `mean =: +/ % #\nsmoutput mean 1 2 3 4 5`.
+
+[0.8.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.8.0

@@ -308,6 +308,12 @@ make stage1 INFILE=examples/hello.ijs OUTFILE=bin/hello.ijs
 
 # Run the benchmark suite
 make bench              # compile-ms / out-chars / exec-ms per canary
+
+# Run the MDL / grammar-induction demo
+make mdl-demo           # mdlScore + grammarInduce + mdlMinimize
+
+# Run the pipeline-trace demo (each stage's output for a sample)
+make trace
 ```
 
 The Makefile auto-detects the Homebrew J cask (`/opt/homebrew/Caskroom/j/*/j*/bin/jconsole`).
@@ -364,7 +370,8 @@ tacitj/
 │
 ├── bench/
 │   ├── bench.ijs       compile-time / emit-quality benchmark suite
-│   └── mdl_demo.ijs    MDL cost + grammar-induction demo
+│   ├── mdl_demo.ijs    MDL cost + grammar-induction demo
+│   └── trace.ijs       pipeline-trace demo (each stage's output)
 │
 ├── doc/
 │   └── design.md       architecture, decisions, trade-offs
@@ -392,6 +399,7 @@ tacitj/
 | 8 | 2-char conjunctions (`@:`, `&:`, `^:`) — rank-preserving composition | ✅ done |
 | 9 | More 2-char verbs: `<.`, `>.` (floor, ceiling) and `+:`, `-:` (increment, decrement) | ✅ done |
 | 10 | Design doc + `examples/rank.ijs` polish | ✅ done |
+| 11 | Pipeline trace demo + bench tests | ✅ done |
 
 ### Bootstrap stages
 
@@ -524,6 +532,18 @@ MDL minimizer (each corpus IR):
   codegen, self-hosting). Linked from the README.
 - **`examples/rank.ijs` polished** — uncommented the
   `floorOfHalf` definition so the example actually runs.
+
+### What's new in v0.8
+
+- **`bench/trace.ijs`** — pipeline-trace demo. Runs a sample
+  program through every compiler stage and prints the output of
+  each (lex tokens → AST → IR → optimized IR → emitted J source
+  → execution result). Makes the architecture visible and is a
+  debugging aid. Run via `make trace`.
+- **`tests/test_bench.ijs`** — bench smoke tests. Verifies that
+  the bench / MDL / trace scripts load and that the bench verbs
+  (`mdlScore`, `grammarInduce`, `mdlMinimize`) can be called.
+- **`make trace` target.**
 
 Quick bootstrap tour:
 ```sh
