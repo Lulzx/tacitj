@@ -371,3 +371,44 @@ Bootstrap verification.
 - `make verify` -> overall `10 / 10`, exits 0.
 
 [0.10.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.10.0
+
+## [0.11.0] - 2026-06-25
+
+Statistical functions example.
+
+### Added
+
+- **`examples/stats.ijs`** — small statistics library:
+  - `mean = +/ % #` (tacit fork)
+  - `sumsq = +/ @: *:` (atop)
+  - `ssqdev = +/ @: *: @: (- mean)` (atop with explicit hook grouping)
+  - `var = ssqdev % #` (tacit fork; variance = ssqdev / count)
+  - `stddev = %: @: var` (atop; sqrt of variance)
+  - `rng = (<./ , >./)` (2-element min/max vector)
+
+  All round-trip through the compiler and produce correct
+  results on a sample dataset `[1..12]`:
+  ```
+  mean   = 6.5
+  sumsq  = 650
+  ssqdev = 143
+  var    = 11.9167
+  std    = 3.45205
+  range  = 1 12
+  ```
+
+### Documented
+
+- **TacitJ hook caveat**: `- mean` is parsed as
+  `(negate mean)` rather than as a hook `(x - mean x)`.
+  The workaround is to wrap in parens (`(- mean)`) or use
+  explicit compositions. This was discovered while writing
+  the stats example and is documented inline.
+
+### Verified
+
+- `make test` -> 129 passed, 0 failed.
+- `make run EXAMPLE=examples/stats.ijs` -> prints all stats
+  with correct numerical values.
+
+[0.11.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.11.0

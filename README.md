@@ -360,6 +360,7 @@ tacitj/
 │   ├── wordcount.ijs   tacit word counter
 │   ├── rank.ijs        2-char conjunctions (@:, &:)
 │   ├── matrix.ijs      2D-array operations
+│   ├── stats.ijs       statistical functions (mean, var, stddev, range)
 │   └── fib.ijs         golden ratio via Binet
 │
 ├── bootstrap/          Stage 1-3 self-host scripts
@@ -403,6 +404,7 @@ tacitj/
 | 11 | Pipeline trace demo + bench tests | ✅ done |
 | 12 | `examples/matrix.ijs` — 2D-array operations demo | ✅ done |
 | 13 | Bootstrap determinism / env-bleed verification (`bench/verify.ijs`) | ✅ done |
+| 14 | `examples/stats.ijs` — statistical functions library | ✅ done |
 
 ### Bootstrap stages
 
@@ -590,6 +592,25 @@ MDL minimizer (each corpus IR):
   Both checks pass: `10 / 10`.
 - **`make verify`** — runs `bench/verify.ijs`. Exits 0 on
   success, 1 on mismatch. Useful as a CI gate.
+
+### What's new in v0.11
+
+- **`examples/stats.ijs`** — small statistics library:
+  - `mean = +/ % #` (fork)
+  - `sumsq = +/ @: *:` (atop)
+  - `ssqdev = +/ @: *: @: (- mean)` (atop with explicit hook grouping)
+  - `var = ssqdev % #` (fork; variance = ssqdev / count)
+  - `stddev = %: @: var` (atop)
+  - `rng = (<./ , >./)` (2-element min/max vector)
+  - All functions round-trip through the compiler and produce
+    correct numerical results on a sample dataset
+    `[1..12]`: mean = 6.5, sumsq = 650, ssqdev = 143,
+    var = 11.9167, std = 3.45205, range = `1 12`.
+- The example also demonstrates the **TacitJ hook caveat**:
+  `- mean` parses as `(negate mean)` rather than as a hook
+  `(x - mean x)`. The workaround is to wrap in parens
+  (`(- mean)`) or use explicit compositions like
+  `(/ % #) @: *: @: - mean`.
 
 Quick bootstrap tour:
 ```sh
