@@ -94,13 +94,13 @@ splitOnLF =: 3 : 0
   else.
     NB. Build segments using a loop (avoids self-cut issues)
     starts =. 0 , 1 + positions
-    ends =. positions , # src
+    ends =. positions , >: # src
     n =. # starts
     segs =. 0 $ <''
     for_i. i. n do.
       s =. i { starts
       e =. (i { ends) - 1
-      seg =. (e - s + 1) {. s }. src
+      seg =. (e - s) {. s }. src
       segs =. segs , <seg
     end.
     segs

@@ -1,16 +1,19 @@
 NB. ============================================================
 NB. tacitj.ijs - TacitJ top-level pipeline
 NB. ============================================================
-NB. Loads lexer, parser, semantic, IR, optimizer, and evaluator,
-NB. then exposes the canonical compile pipeline as a tacit
-NB. composition:
+NB. Loads lexer, parser, semantic, IR, optimizer, codegen, and
+NB. evaluator, then exposes the canonical compile pipeline as a
+NB. tacit composition:
 NB.
-NB.   compile =: execIr @ opt @ lowerIr @ semAnalyze @ parseProgram @ lex
+NB.   compile =: execIr @ optWithEnv @ lowerIr @ semAnalyze @ parseProgram @ lex
 NB.
-NB. For now, the IR-driven codegen is only exercised by tests
-NB. that call `compile` directly. `runTacitJ` (which still uses
-NB. J's `".` to validate) is kept as a convenience for the
-NB. REPL and example runner.
+NB. The codegen module (src/codegen.ijs) provides:
+NB.   emitIr     - unparse IR to J source string
+NB.   emitFile   - write IR as J source to a file
+NB.   compileFile - read source, compile, emit to output file
+NB.
+NB. `runTacitJ` shells to J's 0!:101 for validation and multi-line
+NB. programs. The IR pipeline (`compile`) is used by tests.
 
 load 'src/lex.ijs'
 load 'src/parse.ijs'
@@ -18,11 +21,13 @@ load 'src/sem.ijs'
 load 'src/ir.ijs'
 load 'src/opt.ijs'
 load 'src/eval.ijs'
+load 'src/codegen.ijs'
 
 NB. lowerIr: AST -> IR (the IR Stage's entry point)
 lowerIr =: lowerAst
 
 NB. codegen: emit J source from the IR and execute it via J.
+NB. (The codegen.ijs module provides emitIr for non-execution use.)
 codegen =: execIr
 
 NB. compile: source char vector -> boxed result vector

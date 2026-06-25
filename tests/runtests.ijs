@@ -57,6 +57,10 @@ smoutput '-- Lexer tests --'
 load 'tests/test_lex.ijs'
 smoutput ''
 
+smoutput '-- Parser tests --'
+load 'tests/test_parse.ijs'
+smoutput ''
+
 smoutput '-- IR tests --'
 load 'tests/test_ir.ijs'
 smoutput ''
@@ -67,6 +71,10 @@ smoutput ''
 
 smoutput '-- Pipeline tests --'
 load 'tests/test_pipeline.ijs'
+smoutput ''
+
+smoutput '-- Codegen tests --'
+load 'tests/test_codegen.ijs'
 smoutput ''
 
 NB. --- Summary & exit ---------------------------------------

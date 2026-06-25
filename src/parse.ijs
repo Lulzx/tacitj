@@ -116,12 +116,16 @@ NB. y = boxed vector of 1-box tokens
 NB. Result = 1-box wrapping (ast-node ; remaining-tokens)
 NB. To avoid J's unrolling of 2-boxes, we explicitly box each
 NB. side of the pair, then `;` them as 2-boxes-of-boxes.
+NB. If a trailing RPAREN is present (left from parseTerms stopping
+NB. at it), consume it — this handles the ( expr ) case.
 parseExpr =: 3 : 0
   toks =. y
   'flat rest' =. > parseTerms toks
   grouped =. groupTrains flat
   expr =. ((<AST_EXPR) ; <grouped)
-  NB. Return a 1-box wrapping a 2-box: [<expr, <rest]
+  if. (0 < # rest) *. ((tokType 0 { rest) = T_RPAREN) do.
+    rest =. 1 }. rest
+  end.
   (<expr) ; <rest
 )
 
