@@ -62,3 +62,21 @@ traceCheck =: 3 : 0
   ok
 )
 assert (traceCheck '') ; 1 ; <'trace pipeline stages all produce non-empty output'
+
+NB. --- bench/verify.ijs verbs --------------------------------
+
+NB. The verify script's per-case checks: determinismCheck and
+NB. envBleedCheck are explicit verbs. We probe them directly
+NB. with one corpus entry.
+compileToJsTest =: 3 : 0
+  src =. y
+  resetOptEnv ''
+  ir =. optWithEnv lowerIr semAnalyze parseProgram lex src
+  emitIr ir
+)
+verifyCheck =: 3 : 0
+  j1 =. compileToJsTest '2 + 3'
+  j2 =. compileToJsTest '2 + 3'
+  -. -. j1 -: j2
+)
+assert (verifyCheck '') ; 1 ; <'verify determinism check on a single case'

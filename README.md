@@ -402,6 +402,7 @@ tacitj/
 | 10 | Design doc + `examples/rank.ijs` polish | ✅ done |
 | 11 | Pipeline trace demo + bench tests | ✅ done |
 | 12 | `examples/matrix.ijs` — 2D-array operations demo | ✅ done |
+| 13 | Bootstrap determinism / env-bleed verification (`bench/verify.ijs`) | ✅ done |
 
 ### Bootstrap stages
 
@@ -572,6 +573,23 @@ MDL minimizer (each corpus IR):
   3 6 9
   sum of squares = 91
   ```
+
+### What's new in v0.10
+
+- **`bench/verify.ijs`** — bootstrap verification script.
+  Runs the compiler against a fixed corpus (5 cases covering
+  arithmetic, reduction, assignment, and `smoutput`) and
+  asserts two properties:
+  1. **Determinism** — compiling the same source twice gives
+     byte-identical emitted J source.
+  2. **Env-bleed** — compiling source `S` after compiling
+     another source `P` gives the same result as compiling
+     `S` standalone. This proves the optimizer env doesn't
+     leak state between runs.
+
+  Both checks pass: `10 / 10`.
+- **`make verify`** — runs `bench/verify.ijs`. Exits 0 on
+  success, 1 on mismatch. Useful as a CI gate.
 
 Quick bootstrap tour:
 ```sh

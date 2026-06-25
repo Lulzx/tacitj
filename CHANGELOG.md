@@ -342,3 +342,32 @@ Pipeline-trace demo + bench smoke tests.
   sums, transpose, max, multiplication table, and sum of squares.
 
 [0.9.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.9.0
+
+## [0.10.0] - 2026-06-25
+
+Bootstrap verification.
+
+### Added
+
+- **`bench/verify.ijs`** — bootstrap verification script.
+  - Builds the compiler fresh from `src/*.ijs`.
+  - Defines a fixed corpus of 5 small programs (`2 + 3`,
+    `1 + 2 * 3`, `+/ 1 2 3 4 5`, `mean =: +/ % #`,
+    `smoutput 42`).
+  - Checks **determinism**: compiling the same source twice
+    gives byte-identical emitted J source.
+  - Checks **env-bleed**: compiling source S after compiling
+    another source P gives the same result as compiling S
+    standalone. This proves the optimizer env doesn't leak
+    state between runs.
+  - Prints `determinism:  5 / 5` and `env-bleed:    5 / 5`,
+    exits 0 if both pass.
+- **`make verify`** target. Runs `bench/verify.ijs`. Exits
+  0 on success, 1 on mismatch.
+
+### Verified
+
+- `make test` -> 128 passed, 0 failed.
+- `make verify` -> overall `10 / 10`, exits 0.
+
+[0.10.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.10.0
