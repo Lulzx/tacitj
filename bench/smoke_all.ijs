@@ -30,6 +30,7 @@ EXAMPLES =. EXAMPLES , <'examples/matrix.ijs'
 EXAMPLES =. EXAMPLES , <'examples/stats.ijs'
 EXAMPLES =. EXAMPLES , <'examples/poly.ijs'
 EXAMPLES =. EXAMPLES , <'examples/sort.ijs'
+EXAMPLES =. EXAMPLES , <'examples/moving.ijs'
 
 NB. smokeOne: run a single example. Returns 1 if it ran
 NB. without error, 0 otherwise. Prints PASS/MISSING/FAIL.

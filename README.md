@@ -452,6 +452,7 @@ tacitj/
 │   ├── stats.ijs       statistical functions (mean, var, stddev, range)
 │   ├── poly.ijs        polynomial evaluation (powers + inner product)
 │   ├── sort.ijs        sorting and deduplication
+│   ├── moving.ijs      prefix sums and Stieltjes prefix
 │   └── fib.ijs         golden ratio via Binet
 │
 ├── bootstrap/          Stage 1-3 self-host scripts
@@ -501,6 +502,7 @@ tacitj/
 | 17 | `examples/sort.ijs` — sorting and deduplication | ✅ done |
 | 18 | README tutorial: "Writing TacitJ programs" reference | ✅ done |
 | 19 | `bench/smoke_all.ijs` + `make smoke-all` — run every example | ✅ done |
+| 20 | `examples/moving.ijs` — prefix sums and Stieltjes prefix | ✅ done |
 
 ### Bootstrap stages
 
@@ -774,6 +776,23 @@ MDL minimizer (each corpus IR):
   pass, 1 otherwise. Useful as a quick "did I break any
   examples?" check after a code change.
 - Output: `summary: 11 / 11 examples passed`.
+
+### What's new in v0.16
+
+- **`examples/moving.ijs`** — prefix sums and reductions:
+  - `+/ xs` total sum = 55
+  - `+/ \ xs` cumulative prefix sums = `1 3 6 10 15 21 28 36 45 55`
+  - `+\ xs` Stieltjes prefix matrix (10x10) where row i is
+    the prefix of length i+1 padded with zeros
+  - `*: @: ]` square-then-identity composition
+  - `+/ @: *:` sum of squares
+  - `(<./ , >./)` range
+- Documents the **`+\` vs `+/ \` distinction**: `+\` is
+  Stieltjes prefix (matrix), `+/ \` is cumulative sum
+  (vector). Easy to confuse — the example shows both.
+- **`bench/smoke_all.ijs`** updated to include
+  `examples/moving.ijs`. `make smoke-all` now runs 12
+  examples.
 
 Quick bootstrap tour:
 ```sh

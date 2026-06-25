@@ -542,3 +542,34 @@ Smoke-test runner for all examples.
 - `make smoke-all` -> 11 / 11 examples passed.
 
 [0.15.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.15.0
+
+## [0.16.0] - 2026-06-25
+
+Prefix sums example.
+
+### Added
+
+- **`examples/moving.ijs`** — prefix sums and reductions:
+  - `+/ xs` total sum = 55
+  - `+/ \ xs` cumulative prefix sums = `1 3 6 10 15 21 28 36 45 55`
+  - `+\ xs` Stieltjes prefix matrix (10x10) where row i is
+    the prefix of length i+1 padded with zeros
+  - `*: @: ]` square-then-identity composition
+  - `+/ @: *:` sum of squares (385)
+  - `(<./ , >./)` range (1 10)
+- Documents the **`+\` vs `+/ \` distinction**: `+\` is
+  Stieltjes prefix (matrix), `+/ \` is cumulative sum
+  (vector). Easy to confuse — the example shows both.
+
+### Updated
+
+- **`bench/smoke_all.ijs`** — now includes `moving.ijs` in
+  the smoke-test corpus. 12 examples total.
+
+### Verified
+
+- `make test` -> 132 passed, 0 failed.
+- `make smoke-all` -> 12 / 12 examples passed.
+- `make verify` -> 10 / 10.
+
+[0.16.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.16.0
