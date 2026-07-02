@@ -29,15 +29,17 @@ help:
 	@echo "  make repl         - start an interactive REPL"
 	@echo "  make stage0       - load Stage 0 + run selfhost check"
 	@echo "  make stage1 INFILE=... OUTFILE=...  - compile a TacitJ file"
+	@echo "  make stage2       - freeze output contract + tacit-density baseline"
+	@echo "  make stage3       - honest partial self-host milestone"
 	@echo "  make stage3-attempt - run the stage-3 self-host baseline"
-	@echo "  make bootstrap    - run all bootstrap stages"
+	@echo "  make bootstrap    - run stage0 -> stage1 -> stage2 -> stage3"
 	@echo "  make selfhost     - smoke-test self-compilation"
 	@echo "  make bench        - run compile/exec benchmark suite"
 	@echo "  make mdl-demo     - run the MDL / grammar-induction demo"
 	@echo "  make trace        - run the pipeline-trace demo"
 	@echo "  make verify       - bootstrap determinism / env-bleed check"
 	@echo "  make smoke-all    - run every example as a smoke test"
-	@echo "  make ci           - run test + verify + smoke-all (CI gate)"
+	@echo "  make ci           - run test + verify + smoke-all + bootstrap (CI gate)"
 	@echo "  make clean        - remove build artifacts"
 
 install-j:
@@ -66,6 +68,12 @@ stage1: install-j
 	@test -n "$(OUTFILE)" || { echo "usage: make stage1 INFILE=path.ijs OUTFILE=path.ijs"; exit 1; }
 	$(JC) $(JFLAGS) bootstrap/stage1.ijs INFILE=$(INFILE) OUTFILE=$(OUTFILE)
 
+stage2: install-j
+	$(JC) $(JFLAGS) bootstrap/stage2.ijs
+
+stage3: install-j
+	$(JC) $(JFLAGS) bootstrap/stage3.ijs
+
 stage3-attempt: install-j
 	$(JC) $(JFLAGS) bootstrap/stage3_attempt.ijs
 
@@ -74,6 +82,9 @@ bootstrap: stage0
 	$(JC) $(JFLAGS) bootstrap/stage1.ijs INFILE=examples/hello.ijs OUTFILE=bin/stage1_hello.ijs
 	@echo "stage1: produced bin/stage1_hello.ijs"
 	@$(JC) $(JFLAGS) bin/stage1_hello.ijs > /dev/null && echo "stage1: round-trip OK"
+	@$(MAKE) --no-print-directory stage2
+	@$(MAKE) --no-print-directory stage3
+	@echo "bootstrap: stage0 -> stage1 -> stage2 -> stage3 OK"
 
 selfhost: install-j
 	@echo "selfhost: stage 0 must match stage 0 canary fingerprint"
@@ -100,7 +111,7 @@ verify: install-j
 smoke-all: install-j
 	$(JC) $(JFLAGS) bench/smoke_all.ijs
 
-ci: test verify smoke-all
+ci: test verify smoke-all bootstrap
 	@echo "ci: all checks passed"
 
 clean:

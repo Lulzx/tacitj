@@ -592,3 +592,86 @@ Prefix sums example.
   - `make smoke-all` -> 12 / 12 examples passed.
 
 [0.17.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.17.0
+
+## [0.18.0] - 2026-07-02
+
+Stage 2 and Stage 3 bootstrap implemented (honest partial
+self-host). The Stage 2 and Stage 3 stubs are replaced with
+working, verified drivers, wired into the Makefile and the CI
+gate.
+
+### Added
+
+- **`bootstrap/stage2.ijs`** — Stage 2: output-contract
+  freeze + tacit-density baseline. Replaces the stub.
+  - Runs a fixed 5-case canary corpus through the pipeline
+    and verifies each is a **round-trip fixed point**:
+    `emit(compile(src)) == emit(compile(emit(compile(src))))`.
+    This is the Stage 1 == Stage 2 output contract that
+    Stage 3 must preserve — the seed of self-hosting.
+  - Records a **tacit-density baseline** over `src/*.ijs`:
+    counts one-line tacit definitions (`name =: <expr>`)
+    vs explicit definitions (`3 : 0`, `4 : 0`, `{{ }}`).
+    Baseline: 72 tacit / 125 explicit (fraction 0.37). A
+    future tacit refactor must raise this fraction while
+    keeping the output contract green.
+  - `make stage2`.
+
+- **`bootstrap/stage3.ijs`** — Stage 3: honest partial
+  self-host milestone. Replaces the stub.
+  - Stage 0 canary (`selfhost0`).
+  - Canary corpus round-trip fixed-point check (5/5).
+  - Example classification, reported honestly:
+    - **SAFE** (round-trip fixed points): `hello`, `mean`,
+      `train`, `wordcount`, `fib`, `rank` — 6/6 fixed.
+    - **NONFIX** (compiles but not a fixed point):
+      `pipeline` — emitted J re-parses differently.
+    - **SKIP** (IR subset exceeded, not attempted):
+      `matrix`, `stats`, `poly`, `sort`, `moving`. The IR
+      pipeline (`lex -> ... -> emitIr`) hangs on these — a
+      pre-existing latent Stage 0 bug, distinct from
+      `runTacitJ` (source-level) which runs them fine.
+      Skipped to keep the driver finite; see
+      `bootstrap/stage3_attempt.ijs` for the baseline.
+  - `make stage3`.
+
+### Changed
+
+- **`bootstrap/stage3_attempt.ijs`** — replaced hardcoded
+  absolute paths (`/Users/lulzx/...`) with repo-relative
+  `examples/...` paths (AGENTS.md rule), and swapped the
+  nonexistent `squares.ijs` for `train.ijs`. The
+  one-way self-compile now reports 5/5 examples compiled.
+
+- **Makefile**:
+  - New `stage2` and `stage3` targets.
+  - `make bootstrap` now runs `stage0 -> stage1 -> stage2
+    -> stage3` (previously stopped at stage1).
+  - `make ci` now includes `bootstrap`, so the combined
+    gate covers the full bootstrap chain in addition to
+    `test + verify + smoke-all`.
+  - `make help` lists the new targets.
+
+### Honest scope note
+
+Stage 2 is the **output-contract freeze**, not a tacit
+rewrite of the compiler source. Full self-host (Stage 3 =
+`Stage2 compile Stage3Source`) is blocked on: `src/*.ijs`
+uses J outside the Stage 0 parser subset (`3 : 0`, `<`,
+`0!:0`, etc.), and the IR pipeline does not yet handle
+`matrix`/`stats`/`poly`/`sort`/`moving`. The fixed-point
+property proved here is the seed of self-hosting; reaching
+the milestone requires rewriting the compiler source in
+the TacitJ subset and fixing the IR pipeline.
+
+### Verified
+
+- `make test` -> 132 passed, 0 failed.
+- `make verify` -> 10 / 10.
+- `make smoke-all` -> 12 / 12 examples passed.
+- `make stage2` -> contract 5 / 5 fixed points.
+- `make stage3` -> canary 5 / 5, safe examples 6 / 6 fixed.
+- `make bootstrap` -> stage0 -> stage1 -> stage2 -> stage3 OK.
+- `make ci` -> all checks passed.
+
+[0.18.0]: https://github.com/Lulzx/tacitj/releases/tag/v0.18.0

@@ -143,11 +143,11 @@ stage3Run =: 3 : 0
   NB. emitted source is checked for non-empty output (a
   NB. crude smoke test that the file is a valid TacitJ
   NB. program).
-  paths =. <'/Users/lulzx/work/jinj/examples/mean.ijs'
-  paths =. paths , <'/Users/lulzx/work/jinj/examples/squares.ijs'
-  paths =. paths , <'/Users/lulzx/work/jinj/examples/wordcount.ijs'
-  paths =. paths , <'/Users/lulzx/work/jinj/examples/fib.ijs'
-  paths =. paths , <'/Users/lulzx/work/jinj/examples/hello.ijs'
+  paths =. <'examples/mean.ijs'
+  paths =. paths , <'examples/train.ijs'
+  paths =. paths , <'examples/wordcount.ijs'
+  paths =. paths , <'examples/fib.ijs'
+  paths =. paths , <'examples/hello.ijs'
   i =. 0
   ok =. 0
   total =. # paths

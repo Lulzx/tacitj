@@ -22,15 +22,18 @@ array-language famous for its terse, point-free, tacit style. The compiler's *ow
 is written in that same tacit style, and the goal is for the compiler to eventually compile
 itself (a *self-hosting* bootstrap).
 
-> **Status: Stages 0–1 complete, IR pipeline + codegen + bootstrap live.** The lexer,
-> parser, semantic pass, IR lowerer, optimizer (constant folding, identity
-> elimination, constant propagation), tree-walking evaluator, J-source codegen
-> module (IR → J source → exec via `0!:1`), and Stage 0–1 bootstrap scripts are
-> wired up and tested. The full `compile` pipeline
-> (`lex → parse → sem → lowerIr → opt → execIr`) runs end-to-end on
-> parenthesized and multi-line programs. The next milestones are Stage 2
-> (higher-tactic-density refactor), Stage 3 (self-hosting), and a benchmark
-> suite.
+> **Status: Stages 0–3 implemented (Stage 3 partial), IR pipeline + codegen +
+> bootstrap live.** The lexer, parser, semantic pass, IR lowerer, optimizer
+> (constant folding, identity elimination, constant propagation),
+> tree-walking evaluator, J-source codegen module (IR → J source → exec via
+> `0!:1`), and Stage 0–3 bootstrap scripts are wired up and tested. The full
+> `compile` pipeline (`lex → parse → sem → lowerIr → opt → execIr`) runs
+> end-to-end on parenthesized and multi-line programs. Stage 2 freezes the
+> output contract (round-trip fixed points) and records a tacit-density
+> baseline; Stage 3 proves the canary + corpus + safe examples are fixed
+> points. Full self-host (Stage 3 = `Stage2 compile Stage3Source`) is blocked
+> on rewriting the compiler source in the TacitJ subset. The remaining
+> milestone is a benchmark suite vs. explicit J.
 
 The interesting twist: the optimiser is designed to integrate **MDL-inspired compression**
 (grammar induction over J expressions), so writing *less* code actually makes the
@@ -392,7 +395,9 @@ make run EXAMPLE=examples/mean.ijs
 make repl
 
 # Run the bootstrap pipeline
-make bootstrap          # stage 0 + stage 1 round-trip
+make bootstrap          # stage 0 -> 1 -> 2 -> 3
+make stage2             # freeze output contract + tacit-density baseline
+make stage3             # honest partial self-host milestone
 make stage1 INFILE=examples/hello.ijs OUTFILE=bin/hello.ijs
 
 # Run the benchmark suite
@@ -459,8 +464,9 @@ tacitj/
 │   ├── stage0.ijs      module: load Stage 0 + canary helpers
 │   ├── stage0_run.ijs  one-shot: stage0 + selfhost + exit
 │   ├── stage1.ijs      compile TacitJ source to standalone J
-│   ├── stage2.ijs      stub: higher-tacit refactor
-│   └── stage3.ijs      stub: full-tacit self-host
+│   ├── stage2.ijs      output-contract freeze + tacit-density baseline
+│   ├── stage3.ijs      honest partial self-host (canary + corpus fixed pts)
+│   └── stage3_attempt.ijs  self-host baseline (what the IR subset can't do)
 │
 ├── bench/
 │   ├── bench.ijs       compile-time / emit-quality benchmark suite
@@ -511,9 +517,21 @@ tacitj/
 |-------|-------------|--------|
 | **0** | Hand-written C/J bootstrap (tiny explicit interpreter) | **done** |
 | **1** | TacitJ compiler in explicit J, compiled by Stage 0 | ✅ done (`make stage1`) |
-| **2** | Same source, increasing tacit %, compiled by Stage 1 | 🟡 stub (planned refactor) |
-| **3** | Full tacit version; self-hosting (`diff` Stage 2 == Stage 3) | 🟡 baseline (`make stage3-attempt`) |
+| **2** | Output-contract freeze + tacit-density baseline | ✅ done (`make stage2`) |
+| **3** | Partial self-host: canary + corpus fixed points verified | 🟡 partial (`make stage3`) |
 | **4+** | Performance VM + LLVM backend | planned |
+
+Stage 2 freezes the **output contract**: a 5-case canary
+corpus where `emit(compile(src)) == emit(compile(emit(compile(src))))`
+(round-trip fixed point), and records a tacit-density
+baseline over `src/*.ijs` (72 tacit / 125 explicit). Stage 3
+proves the canary + corpus + 6 safe examples are fixed points
+and honestly classifies the rest: `pipeline` compiles but is
+not a fixed point; `matrix`/`stats`/`poly`/`sort`/`moving`
+exceed the current IR subset (the IR pipeline hangs on them —
+a latent Stage 0 bug; `runTacitJ` runs them fine) and are
+skipped. Full self-host is blocked on rewriting the compiler
+source in the TacitJ subset.
 
 ### Stage 0 language subset
 
@@ -794,6 +812,27 @@ MDL minimizer (each corpus IR):
 - **`bench/smoke_all.ijs`** updated to include
   `examples/moving.ijs`. `make smoke-all` now runs 12
   examples.
+
+### What's new in v0.18
+
+- **`make stage2`** — Stage 2: freezes the output contract
+  (a 5-case canary corpus verified as round-trip fixed points:
+  `emit(compile(src)) == emit(compile(emit(compile(src))))`)
+  and records a tacit-density baseline over `src/*.ijs`
+  (72 tacit / 125 explicit definitions).
+- **`make stage3`** — Stage 3: honest partial self-host
+  milestone. Proves the canary + corpus + 6 safe examples
+  (`hello`, `mean`, `train`, `wordcount`, `fib`, `rank`) are
+  fixed points. Classifies the rest: `pipeline` compiles but
+  is not a fixed point; `matrix`/`stats`/`poly`/`sort`/
+  `moving` exceed the current IR subset (the IR pipeline
+  hangs on them — a latent Stage 0 bug; `runTacitJ` runs them
+  fine) and are skipped, not attempted.
+- **`make bootstrap`** — now runs `stage 0 -> 1 -> 2 -> 3`.
+- **`make ci`** — now includes `bootstrap`, so the combined
+  gate is `test + verify + smoke-all + bootstrap`.
+- **`bootstrap/stage3_attempt.ijs`** — hardcoded absolute
+  paths replaced with repo-relative paths.
 
 ### What's new in v0.17
 

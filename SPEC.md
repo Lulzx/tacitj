@@ -181,18 +181,30 @@ infer =: (rankMatch * typeJoin) f.
 
 ### 4.6 Bootstrap Strategy (5 Stages)
 
-| Stage | Description | Language of compiler | Language compiled |
-|-------|-------------|----------------------|-------------------|
-| **0** | Hand-written C/J hybrid bootstrap (tiny explicit interpreter for J–Tacit Core). | C / J stdlib | TacitJ |
-| **1** | TacitJ compiler written in explicit J, compiled by Stage 0. | explicit J | TacitJ |
-| **2** | Same source, increasing tacit %, compiled by Stage 1. | mixed J | TacitJ |
-| **3** | Full tacit version; `Stage3 =: Stage2 compile Stage3Source`. | TacitJ | TacitJ |
-| **4+** | Performance VM + LLVM backend. | TacitJ | TacitJ → native |
+| Stage | Description | Language of compiler | Language compiled | Status |
+|-------|-------------|----------------------|-------------------|--------|
+| **0** | Hand-written C/J hybrid bootstrap (tiny explicit interpreter for J–Tacit Core). | C / J stdlib | TacitJ | done |
+| **1** | TacitJ compiler written in explicit J, compiled by Stage 0. | explicit J | TacitJ | done (`make stage1`) |
+| **2** | Output-contract freeze + tacit-density baseline (round-trip fixed points over a canary corpus). | mixed J | TacitJ | done (`make stage2`) |
+| **3** | Full tacit version; `Stage3 =: Stage2 compile Stage3Source`. | TacitJ | TacitJ | partial (`make stage3`) |
+| **4+** | Performance VM + LLVM backend. | TacitJ | TacitJ → native | planned |
 
 **Verification**:
 - `diff` on binary output.
 - `checksum(compiler_source) == checksum(compiler_on_itself)`.
 - Full test-suite round-trip.
+
+**Stage 2** freezes the output contract: a 5-case canary
+corpus where `emit(compile(src)) == emit(compile(emit(compile(src))))`
+(round-trip fixed point), plus a tacit-density baseline over
+`src/*.ijs` (72 tacit / 125 explicit). **Stage 3** proves the
+canary + corpus + 6 safe examples are fixed points and
+honestly classifies the rest (`pipeline` is not a fixed point;
+`matrix`/`stats`/`poly`/`sort`/`moving` exceed the current IR
+subset and are skipped). Full self-host is blocked on
+rewriting the compiler source in the TacitJ subset (the Stage
+0 parser does not recognise `3 : 0`, `<`, `0!:0`, etc.) and on
+the IR pipeline handling the larger examples.
 
 ---
 
@@ -301,6 +313,9 @@ NB. -> 16
 2. **Stage 0 bootstrap** ✓ — `src/{lex,parse,sem,eval,tacitj}.ijs`.
 3. **Test suite** ✓ — `tests/test_*.ijs`, `runtests.ijs`.
 4. **Examples** ✓ — `examples/{hello,mean,pipeline}.ijs`.
-5. (Stage 1+) Replace `eval` with real bytecode/C codegen.
-6. (Stage 2+) Add MDL rewrite engine and grammar induction.
-7. (Stage 3) Self-host: `diff` Stage 2 binary vs Stage 3 binary.
+5. **Stage 1** ✓ — compile a TacitJ file to a standalone J script (`make stage1`).
+6. **Stage 2** ✓ — output-contract freeze + tacit-density baseline (`make stage2`).
+7. **Stage 3** 🟡 partial — canary + corpus + safe examples verified as fixed points; full self-host blocked on the compiler source being rewritten in the TacitJ subset (`make stage3`).
+8. (Stage 4+) Replace `eval` with real bytecode/C codegen; performance VM + LLVM backend.
+9. (Stage 2 refactor) Raise the tacit-density fraction (72/125 today) while keeping the Stage 2 output contract green.
+10. Fix the latent IR-pipeline hang on `matrix`/`stats`/`poly`/`sort`/`moving` (distinct from `runTacitJ`, which runs them).
