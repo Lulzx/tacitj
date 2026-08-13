@@ -67,6 +67,9 @@ optPass =: 3 : 0
   elseif. op = IR_REF do.
     NB. IR_REF: apply constant-propagation.
     optRef ir
+  elseif. op = IR_DEF do.
+    NB. IR_DEF is an opaque verbatim block: nothing to do.
+    ir
   elseif. op = IR_CALL do.
     NB. IR_CALL: apply constant-folding.
     optCall ir
@@ -98,6 +101,7 @@ optChildren =: 3 : 0
   op =. irOp ir
   if. op = IR_LIT do. ir return. end.
   if. op = IR_REF do. ir return. end.
+  if. op = IR_DEF do. ir return. end.
   if. op = IR_CALL do. optChildrenCall ir return. end.
   if. op = IR_TRAIN2 do. optChildrenTrain2 ir return. end.
   if. op = IR_TRAIN3 do. optChildrenTrain3 ir return. end.
@@ -539,6 +543,7 @@ opCost =: 3 : 0
   elseif. op = IR_ASSN   do. 2
   elseif. op = IR_SEQ    do. 1
   elseif. op = IR_PROG   do. 1
+  elseif. op = IR_DEF    do. 1
   else.                     0
   end.
 )

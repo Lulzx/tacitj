@@ -146,13 +146,72 @@ toks7 =. lex '<. 3.5'
 NB. Expected tokens: <., 3.5, EOF = 3
 check (# toks7) ; 3 ; <'lex <.: 3 tokens'
 check (tokType 0 { toks7) ; T_VERB ; <'lex <.: T_VERB at index 0'
-check (tokValue 0 { toks7) ; '<.'; <'lex <.: value is <.'
+check (tokValue 0 { toks7) ; '<.' ; <'lex <.: value is <.'
 
 NB. >. is a single 2-char verb token (ceiling)
 toks8 =. lex '>. 3.5'
 NB. Expected tokens: >., 3.5, EOF = 3
 check (# toks8) ; 3 ; <'lex >.: 3 tokens'
 check (tokType 0 { toks8) ; T_VERB ; <'lex >.: T_VERB at index 0'
-check (tokValue 0 { toks8) ; '>.'; <'lex >.: value is >.'
+check (tokValue 0 { toks8) ; '>.' ; <'lex >.: value is >.'
+
+NB. --- Negative numbers and infinities (added in v0.19) -----
+
+NB. _1 is a single T_NUM token (not BAD _ then NUM 1)
+toks9 =. lex '_1'
+check (# toks9) ; 2 ; <'lex _1: 2 tokens (NUM + EOF)'
+check (tokType 0 { toks9) ; T_NUM ; <'lex _1: T_NUM'
+check (tokValue 0 { toks9) ; '_1' ; <'lex _1: value _1'
+
+NB. _3.14 is a single T_NUM token
+toks10 =. lex '_3.14'
+check (tokType 0 { toks10) ; T_NUM ; <'lex _3.14: T_NUM'
+check (tokValue 0 { toks10) ; '_3.14' ; <'lex _3.14: value _3.14'
+
+NB. __ (negative infinity) and _. (NaN) are single T_NUM tokens
+check (tokType 0 { lex '__') ; T_NUM ; <'lex __: T_NUM (neg infinity)'
+check (tokType 0 { lex '_.') ; T_NUM ; <'lex _.: T_NUM (NaN)'
+
+NB. --- Explicit-definition blocks (added in v0.19) -----------
+
+NB. foo =: 3 : 0 ... ) lexes as NAME ASSIGN DEF EOF
+defSrc =. 'foo =: 3 : 0', LF, '  y + 1', LF, ')'
+toksD =. lex defSrc
+check (# toksD) ; 4 ; <'lex def block: 4 tokens (NAME ASSIGN DEF EOF)'
+check (tokType 2 { toksD) ; T_DEF ; <'lex def block: T_DEF at index 2'
+check (tokValue 2 { toksD) ; ('3 : 0', LF, '  y + 1', LF, ')') ; <'lex def block: value is the verbatim block'
+
+NB. Dyadic def (4 : 0)
+defSrc2 =. 'f =: 4 : 0', LF, '  x + y', LF, ')'
+toksD2 =. lex defSrc2
+check (tokType 2 { toksD2) ; T_DEF ; <'lex dyadic def block: T_DEF'
+
+NB. A def block captures exactly through the closing ')' line,
+NB. and the following sentence starts a new token run (with a
+NB. SENT_END separator, matching the non-def path).
+defSrc3 =. 'foo =: 3 : 0', LF, '  y', LF, ')', LF, 'bar =: 1'
+toksD3 =. lex defSrc3
+check (# toksD3) ; 8 ; <'lex def + next sentence: 8 tokens (with SENT_END)'
+check (tokType 4 { toksD3) ; T_NAME ; <'lex def + next: NAME bar at 4'
+check (tokValue 4 { toksD3) ; 'bar' ; <'lex def + next: value bar'
+
+NB. A 3 : 0 inside a comment is NOT a def opener.
+toksD4 =. lex 'NB. see (3 : 0) in the docs'
+check (# toksD4) ; 1 ; <'lex: 3 : 0 in comment is not a def'
+
+NB. --- String-aware comment stripping (added in v0.19) -------
+
+NB. NB. inside a string literal is data, not a comment.
+stripped =. stripComment 'x =. ''NB. in string'' NB. real'
+check stripped ; 'x =. ''NB. in string'' ' ; <'stripComment: NB. inside string preserved'
+
+NB. A string with an escaped (doubled) quote still ends correctly.
+stripped2 =. stripComment 'y =. ''it''''s'' NB. tail'
+check stripped2 ; 'y =. ''it''''s'' ' ; <'stripComment: escaped quote handling'
+
+NB. Comments inside a def body are preserved (verbatim block).
+defWithComment =. 'f =: 3 : 0', LF, '  NB. keep me', LF, '  y', LF, ')'
+stripped3 =. stripComments defWithComment
+check stripped3 ; defWithComment ; <'stripComments: def body comments preserved'
 
 

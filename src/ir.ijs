@@ -40,9 +40,11 @@ IR_SEQ    =: 8    NB. sequence of statements
 IR_PROG   =: 9    NB. top-level program: list of sentences
 IR_TRAIN  =: 10   NB. generic N-train (N>=4): unparses to ( c0 c1 ... )
                  NB.   J's own parser handles train reduction on round-trip.
+IR_DEF    =: 11   NB. explicit-definition block (3 : 0 ... ): raw source,
+                 NB. emitted verbatim.
 
 NB. Opcode labels (for diagnostics)
-IR_LABELS =: 'LIT';'REF';'CALL';'TRAIN2';'TRAIN3';'ADVR';'CONJ';'ASSN';'SEQ';'PROG';'TRAIN'
+IR_LABELS =: 'LIT';'REF';'CALL';'TRAIN2';'TRAIN3';'ADVR';'CONJ';'ASSN';'SEQ';'PROG';'TRAIN';'DEF'
 
 NB. --- IR constructors -------------------------------------
 
@@ -126,6 +128,7 @@ NB. single `<X` (1-box of X) so `,` preserves the 1-boxing and the
 NB. slot value is directly accessible by one `>` unbox.
 
 NB. irLit: build an IR_LIT from a scalar value.
+NB. Meta is a: (not a string literal).
 irLit =: 3 : 0
   slot0 =. < IR_LIT
   slot1 =. < y
@@ -134,9 +137,33 @@ irLit =: 3 : 0
   < ir
 )
 
+NB. irStr: build an IR_LIT *string literal*. The meta slot tags it so
+NB. the unparser always re-quotes it: a 2-char primitive-looking string
+NB. ('<.' , '+.' , ...) must NOT be emitted unquoted, or `prims2` in the
+NB. compiler source would silently become verb literals on self-host.
+irStr =: 3 : 0
+  slot0 =. < IR_LIT
+  slot1 =. < y
+  slot2 =. <'S'
+  ir =. slot0 , slot1 , slot2
+  < ir
+)
+
 NB. irRef: build an IR_REF from a name (char vec).
 irRef =: 3 : 0
   slot0 =. < IR_REF
+  slot1 =. < y
+  slot2 =. < a:
+  ir =. slot0 , slot1 , slot2
+  < ir
+)
+
+NB. irDef: build an IR_DEF from the raw block source (char vec).
+NB. The block is the verbatim text of a `3 : 0 ... )` / `4 : 0 ... )`
+NB. explicit definition, including the opener and the closing ')'.
+NB. The unparser emits it unchanged, so defs round-trip byte-identically.
+irDef =: 3 : 0
+  slot0 =. < IR_DEF
   slot1 =. < y
   slot2 =. < a:
   ir =. slot0 , slot1 , slot2
@@ -357,9 +384,13 @@ groupedOf =: 3 : 0
   node =. y
   while. (astTagR node) = AST_EXPR do.
     kids =. astKidsR node
-    if. (1 = # kids) *. (AST_EXPR = astTagR 0 { kids) do.
-      NB. EXPR-outer wraps EXPR-inner via a 1-element list: descend.
-      node =. 0 { kids
+    if. 1 = # kids do.
+      if. AST_EXPR = astTagR 0 { kids do.
+        NB. EXPR-outer wraps EXPR-inner via a 1-element list: descend.
+        node =. 0 { kids
+      else.
+        kids return.
+      end.
     else.
       kids return.
     end.
@@ -396,6 +427,15 @@ lowerSentList =: 3 : 0
   end.
 )
 
+NB. lowerAssn: lower an AST_ASSIGN node to IR_ASSN.
+NB. y = AST_ASSIGN node (any boxing). Result = IR_ASSN node.
+lowerAssn =: 3 : 0
+  payload =. astKidsR y               NB. [name-leaf ; <rhs-expr]
+  name =. astValR 0 { payload         NB. the name string
+  exprIr =. lowerExprNode 1 { payload NB. <rhs> (scalar-boxed)
+  irAssn ((<irRef name) , <exprIr)
+)
+
 NB. lowerSent: lower a single sentence AST to an IR node.
 NB. y = AST_SENT node (any boxing; robust accessors peel it).
 NB. Result = IR node (IR_ASSN for an assignment, the expr IR for a
@@ -404,10 +444,7 @@ lowerSent =: 3 : 0
   inner =. astKidsR y                       NB. inner 2-box (EXPR-outer or ASSIGN)
   tg =. astTagR inner
   if. tg = AST_ASSIGN do.
-    payload =. astKidsR inner                NB. [name-leaf ; <expr-EXPR>]
-    name =. astValR 0 { payload              NB. the name string
-    exprIr =. lowerExprNode 1 { payload      NB. <EXPR-inner> (scalar-boxed)
-    irAssn ((<irRef name) , <exprIr)
+    lowerAssn inner
   elseif. tg = AST_EXPR do.
     lowerExprNode inner
   else.
@@ -456,11 +493,15 @@ lowerNode =: 3 : 0
   if. t = AST_NOON do.
     irLit astValR y
   elseif. t = AST_STR do.
-    irLit astValR y
+    irStr astValR y
   elseif. t = AST_NAME do.
     irRef astValR y
   elseif. (t = AST_VERB) +. (t = AST_ADV) +. (t = AST_CONJ) do.
     irLit astValR y
+  elseif. t = AST_DEF do.
+    irDef astValR y
+  elseif. t = AST_ASSIGN do.
+    lowerAssn y
   elseif. t = AST_TRAIN do.
     lowerSeq astKidsR y
   elseif. t = AST_EXPR do.
@@ -510,8 +551,9 @@ unparseIr =: 3 : 0
   end.
   op =. irOp y
   args =. irArgs y
-  if. op = IR_LIT do. unparseIrLit args return. end.
+  if. op = IR_LIT do. unparseIrLit (args ; irMeta y) return. end.
   if. op = IR_REF do. args return. end.
+  if. op = IR_DEF do. args return. end.
   if. op = IR_CALL do. unparseIrCall args return. end.
   if. op = IR_TRAIN2 do. unparseIrTrain2 args return. end.
   if. op = IR_TRAIN3 do. unparseIrTrain3 args return. end.
@@ -629,11 +671,13 @@ unparseIrSeqRest =: 3 : 0
 )
 
 NB. unparseIrLit: unparse an IR_LIT node's args.
-NB. y = boxed scalar (the value)
+NB. y = 2-box (value ; meta). meta is 'S' for string literals.
 NB. Result = char vector of J source for the literal
 NB.
 NB. Heuristics:
+NB.   - string literal (meta 'S') -> always quoted (doubled quotes escaped)
 NB.   - 1-char primitive char (verb/adv/conj) -> bare
+NB.   - 2-char primitive verb/conj -> bare
 NB.   - char vec that's empty or multi-char -> quoted string
 NB.   - number (any kind) -> ":
 NB.   - anything else -> ":
@@ -654,8 +698,14 @@ prims2 =: '*:' , '%:' , '^:' , '|:' , '<:' , '>:' , '~:' , '+:' , '-:'
 prims2 =: prims2 , '<.' , '>.' , '+.' , '-.' , CONJ_TWO_CHAR
 
 unparseIrLit =: 3 : 0
-  v =. y
+  'v meta' =. y
   q =. QUOTE
+  if. meta -: 'S' do.
+    NB. String literal (came from a quoted J string): always re-quote,
+    NB. even if the body looks like a primitive (<., +., @:).
+    (q , (quoteEscape v)) , q
+    return.
+  end.
   if. 2 = 3!:0 v do.
     NB. Single-char primitives are emitted unquoted.
     if. 1 = # v do.

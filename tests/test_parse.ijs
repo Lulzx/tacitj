@@ -77,3 +77,23 @@ toks4 =. lex src4
 NB. 6 tokens: NUM, VERB, NUM, SENT_END, NUM, VERB, NUM, EOF = 8
 NB. Actually only one SENT_END between the non-blank lines.
 assert (# toks4) ; 8 ; <'lex: blank-line LFs still split once'
+
+NB. --- Chained assignment (added in v0.19) -------------------
+
+NB. a =: b =: c =: 5 is J's right-associative chain and must
+NB. round-trip (J re-derives a =: (b =: (c =: 5))).
+resetOptEnv ''
+progC =. lowerIr semAnalyze parseProgram lex 'a =: b =: c =: 5'
+assert (irOp progC) ; IR_PROG ; <'lowerIr: chain -> IR_PROG'
+assert (emitIr progC) ; 'a =: b =: c =: 5' ; <'lowerIr: chain round-trips'
+
+NB. --- Def block ends its sentence (added in v0.19) ----------
+
+NB. A def block must not fuse with the following sentence: the
+NB. parser treats a T_DEF as a sentence terminator.
+resetOptEnv ''
+defSrc =. 'foo =: 3 : 0', LF, '  y + 1', LF, ')', LF, 'bar =: 1'
+astD =. parseProgram lex defSrc
+assert (2 = # astD) ; 1 ; <'parse: def + next sentence = 2 sentences'
+progD =. lowerIr semAnalyze astD
+assert (2 = # > irArgs progD) ; 1 ; <'lowerIr: def + next sentence = 2 stmts'

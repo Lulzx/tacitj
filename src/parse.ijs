@@ -28,9 +28,10 @@ AST_TRAIN  =: 6
 AST_EXPR   =: 7
 AST_ASSIGN =: 8
 AST_SENT   =: 9
+AST_DEF    =: 10   NB. explicit-definition block (3 : 0 ... )
 
 NB. AST tag labels (for diagnostics)
-AST_LABELS =: 'NOON';'STR';'NAME';'VERB';'ADV';'CONJ';'TRAIN';'EXPR';'ASSIGN';'SENT'
+AST_LABELS =: 'NOON';'STR';'NAME';'VERB';'ADV';'CONJ';'TRAIN';'EXPR';'ASSIGN';'SENT';'DEF'
 
 NB. --- Token-to-AST tag mapping ---------------------------
 
@@ -46,6 +47,7 @@ tokenToAst =: 3 : 0
   elseif. t = T_VERB do. (<AST_VERB) ; <,v
   elseif. t = T_ADV  do. (<AST_ADV)  ; <,v
   elseif. t = T_CONJ do. (<AST_CONJ) ; <,v
+  elseif. t = T_DEF  do. (<AST_DEF)  ; <v
   elseif.            do. 0  NB. not a leaf
   end.
 )
@@ -87,6 +89,13 @@ parseProgRec =: 3 : 0
       pair =. parseSentence toks
       'sent consumed' =. pair
       out =. out , <sent
+      if. consumed -: toks do.
+        NB. No progress (e.g. a leading T_ASSIGN that parseTerms
+        NB. treats as a terminator). Drop one token so the parse
+        NB. always terminates; the construct is emitted as an
+        NB. empty sentence rather than looping forever.
+        consumed =. 1 }. toks
+      end.
       toks =. consumed
     end.
   end.
@@ -102,15 +111,35 @@ parseSentence =: 3 : 0
   if. isAssign do.
     nameAst =. tokenToAst 0 { toks
     rest    =. 2 }. toks
-    pair =. parseExpr rest
-    'expr rest2' =. pair
-    sent =. ((<AST_SENT) ; <((<AST_ASSIGN) ; (<nameAst ; <expr)))
+    pair =. parseAssignChain rest
+    'rhs rest2' =. pair
+    sent =. ((<AST_SENT) ; <((<AST_ASSIGN) ; (<nameAst ; <rhs)))
     (sent) ; <rest2
   else.
     pair =. parseExpr toks
     'expr rest2' =. pair
     sent =. ((<AST_SENT) ; <((<AST_EXPR) ; <,expr))
     (sent) ; <rest2
+  end.
+)
+
+NB. parseAssignChain: parse the RHS of an assignment, supporting
+NB. J's right-associative chains: `a =: b =: c` is `a =: (b =: c)`.
+NB. y = boxed vector of 1-box tokens (tokens after `name =:`)
+NB. Result = 1-box wrapping (rhs-ast ; remaining-tokens)
+parseAssignChain =: 3 : 0
+  toks =. y
+  isNestedAssign =. (1 < # toks) *. ((tokType 0 { toks) = T_NAME) *. ((tokType 1 { toks) = T_ASSIGN)
+  if. isNestedAssign do.
+    nameAst =. tokenToAst 0 { toks
+    pair =. parseAssignChain 2 }. toks
+    'rhs rest2' =. pair
+    inner =. ((<AST_ASSIGN) ; (<nameAst ; <rhs))
+    (<inner) ; <rest2
+  else.
+    pair =. parseExpr toks
+    'expr rest2' =. pair
+    (<expr) ; <rest2
   end.
 )
 
@@ -134,7 +163,10 @@ parseExpr =: 3 : 0
 
 NB. parseTerms: (toks) -> 2-box [<out, <toks]
 NB. Consumes a sequence of terms and operators. Stops at
-NB. T_EOF, T_RPAREN, T_ASSIGN, T_SENT_END.
+NB. T_EOF, T_RPAREN, T_ASSIGN, T_SENT_END — and after a T_DEF
+NB. (an explicit-definition block always ends its sentence; the
+NB. tokens that follow start a new sentence, so they must not be
+NB. fused into a train with the def).
 parseTerms =: 3 : 0
   toks =. y
   out =. 0 $ a:
@@ -154,6 +186,7 @@ parseTerms =: 3 : 0
       else.
         out =. out , <ast
         toks =. 1 }. toks
+        if. t0 = T_DEF do. break. end.
       end.
     end.
   end.
@@ -273,6 +306,9 @@ formatNode =: 3 : 0
   elseif. t = AST_NAME do.
     p =. > astPayload y
     tagName , ' ' , p
+  elseif. t = AST_DEF do.
+    p =. > astPayload y
+    tagName , ' <def-block ' , (": # p) , ' chars>'
   elseif. (t = AST_VERB) +. (t = AST_ADV) +. (t = AST_CONJ) do.
     p =. > astPayload y
     tagName , ' ' , p

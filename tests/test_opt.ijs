@@ -132,3 +132,14 @@ mdlCost =. 3 : 0
 )
 check (mdlCost irLit 5) ; 1 ; <'mdlCost: IR_LIT = 1'
 check (mdlCost (irTrain2 ((irLit '+') ; (irLit '/')))) ; 2 ; <'mdlCost: IR_TRAIN2 = 2'
+
+NB. --- Explicit-definition blocks (added in v0.19) -----------
+
+NB. IR_DEF is an opaque leaf: the optimizer must not touch it.
+defSrc =. '3 : 0', LF, '  y + 1', LF, ')'
+resetOptEnv ''
+progDef =. optWithEnv lowerIr semAnalyze parseProgram lex ('foo =: ' , defSrc)
+defStmt =. 0 { > irArgs progDef
+check (irOp defStmt) ; IR_ASSN ; <'opt: def stays IR_ASSN'
+check (irOp (1 { > irArgs defStmt)) ; IR_DEF ; <'opt: def rhs stays IR_DEF'
+check (unparseIr defStmt) ; ('foo =: ' , defSrc) ; <'opt: def block unparsed verbatim'

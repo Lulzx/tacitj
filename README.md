@@ -22,7 +22,7 @@ array-language famous for its terse, point-free, tacit style. The compiler's *ow
 is written in that same tacit style, and the goal is for the compiler to eventually compile
 itself (a *self-hosting* bootstrap).
 
-> **Status: Stages 0–3 implemented (Stage 3 partial), IR pipeline + codegen +
+> **Status: Stages 0–3 implemented (Stage 3 advanced), IR pipeline + codegen +
 > bootstrap live.** The lexer, parser, semantic pass, IR lowerer, optimizer
 > (constant folding, identity elimination, constant propagation),
 > tree-walking evaluator, J-source codegen module (IR → J source → exec via
@@ -30,10 +30,13 @@ itself (a *self-hosting* bootstrap).
 > `compile` pipeline (`lex → parse → sem → lowerIr → opt → execIr`) runs
 > end-to-end on parenthesized and multi-line programs. Stage 2 freezes the
 > output contract (round-trip fixed points) and records a tacit-density
-> baseline; Stage 3 proves the canary + corpus + safe examples are fixed
-> points. Full self-host (Stage 3 = `Stage2 compile Stage3Source`) is blocked
-> on rewriting the compiler source in the TacitJ subset. The remaining
-> milestone is a benchmark suite vs. explicit J.
+> baseline. **Since v0.19 the compiler compiles through itself**: every
+> `src/*.ijs` file round-trips as a syntactic fixed point (9/9), and the
+> emitted (self-compiled) modules load and reproduce the Stage 0 output
+> contract (`make selfhost-full`). Remaining honest gaps: the emitted
+> compiler's execution path (`execIr`/`runTacitJ`) is not yet exercised
+> end-to-end, and a few top-level emission edge cases (see §4.7 in
+> SPEC.md).
 
 The interesting twist: the optimiser is designed to integrate **MDL-inspired compression**
 (grammar induction over J expressions), so writing *less* code actually makes the
@@ -466,7 +469,8 @@ tacitj/
 │   ├── stage1.ijs      compile TacitJ source to standalone J
 │   ├── stage2.ijs      output-contract freeze + tacit-density baseline
 │   ├── stage3.ijs      honest partial self-host (canary + corpus fixed pts)
-│   └── stage3_attempt.ijs  self-host baseline (what the IR subset can't do)
+│   ├── stage3_attempt.ijs  self-host baseline (what the IR subset can't do)
+│   └── selfhost_full.ijs  compiler compiles through itself (9/9 src files)
 │
 ├── bench/
 │   ├── bench.ijs       compile-time / emit-quality benchmark suite
@@ -518,7 +522,7 @@ tacitj/
 | **0** | Hand-written C/J bootstrap (tiny explicit interpreter) | **done** |
 | **1** | TacitJ compiler in explicit J, compiled by Stage 0 | ✅ done (`make stage1`) |
 | **2** | Output-contract freeze + tacit-density baseline | ✅ done (`make stage2`) |
-| **3** | Partial self-host: canary + corpus fixed points verified | 🟡 partial (`make stage3`) |
+| **3** | Self-host: src/*.ijs compile through the pipeline; emitted compiler reproduces the output contract | 🟢 advanced (`make stage3`, `make selfhost-full`) |
 | **4+** | Performance VM + LLVM backend | planned |
 
 Stage 2 freezes the **output contract**: a 5-case canary
@@ -530,8 +534,11 @@ and honestly classifies the rest: `pipeline` compiles but is
 not a fixed point; `matrix`/`stats`/`poly`/`sort`/`moving`
 exceed the current IR subset (the IR pipeline hangs on them —
 a latent Stage 0 bug; `runTacitJ` runs them fine) and are
-skipped. Full self-host is blocked on rewriting the compiler
-source in the TacitJ subset.
+skipped. **Since v0.19 the compiler source itself is no longer
+a blocker**: every `src/*.ijs` file compiles through the
+pipeline as a syntactic fixed point (9/9), and the emitted
+modules load in a clean namespace and reproduce the Stage 0
+output contract (`make selfhost-full`).
 
 ### Stage 0 language subset
 
@@ -812,6 +819,24 @@ MDL minimizer (each corpus IR):
 - **`bench/smoke_all.ijs`** updated to include
   `examples/moving.ijs`. `make smoke-all` now runs 12
   examples.
+
+### What's new in v0.19
+
+- **Self-host breakthrough**: every `src/*.ijs` file now compiles
+  through the Stage 0 pipeline and round-trips as a syntactic
+  fixed point (9/9). The emitted (self-compiled) modules load in
+  a clean namespace and reproduce the Stage 0 output contract.
+  See **`make selfhost-full`**.
+- **Explicit-definition blocks** — `3 : 0 ... )` / `4 : 0 ... )`
+  are captured verbatim (new `T_DEF` token, `AST_DEF` node,
+  `IR_DEF` opcode). The parser no longer crashes on multi-line
+  defs.
+- **String-aware comment stripping** — `'NB.'` inside a string is
+  data, not a comment (fixes a latent bug that only fired when
+  the compiler started compiling its own source).
+- **`_`-literals** — `_1`, `_3.14`, `_`, `__`, `_.` lex as
+  numbers.
+- **Chained assignment** — `a =: b =: c` parses and round-trips.
 
 ### What's new in v0.18
 

@@ -114,3 +114,35 @@ NB. the same unparse as running it once (fixed point, no boxing loop).
 once =. optWithEnv lowerIr semAnalyze parseProgram lex '2 + 3'
 twice =. optWithEnv once
 check (unparseIr once) ; (unparseIr twice) ; <'opt: fixed point on ( 2 + 3 )'
+
+NB. --- String vs primitive literals (added in v0.19) ---------
+
+NB. A string literal that looks like a primitive ('<.' ) must stay
+NB. quoted; a verb literal (<. ) must stay unquoted.
+check (unparseIr irStr '<.') ; (QUOTE , '<.' , QUOTE) ; <'unparse: irStr ''<.'' stays quoted'
+check (unparseIr irLit '<.') ; '<.' ; <'unparse: irLit <. stays unquoted'
+check (unparseIr irStr '+.') ; (QUOTE , '+.' , QUOTE) ; <'unparse: irStr ''+.'' stays quoted'
+
+NB. Empty string stays quoted.
+check (unparseIr irStr '') ; (QUOTE , QUOTE) ; <'unparse: empty string quoted'
+
+NB. --- Negative numbers (added in v0.19) ---------------------
+
+check (unparseIr irLit _1) ; '_1' ; <'unparse: _1'
+check (unparseIr irLit _3.14) ; '_3.14' ; <'unparse: _3.14'
+
+NB. --- Explicit-definition blocks (added in v0.19) -----------
+
+NB. A def block lowers to IR_DEF and unparses verbatim.
+defSrc =. '3 : 0', LF, '  y + 1', LF, ')'
+progDef =. lowerIr semAnalyze parseProgram lex ('foo =: ' , defSrc)
+defStmt =. 0 { > irArgs progDef
+check (irOp defStmt) ; IR_ASSN ; <'lowerIr: def -> IR_ASSN'
+check (irOp (1 { > irArgs defStmt)) ; IR_DEF ; <'lowerIr: def rhs is IR_DEF'
+check (unparseIr defStmt) ; ('foo =: ' , defSrc) ; <'lowerIr: def unparses verbatim'
+
+NB. Full round-trip: emit(compile(src)) == emit(compile(emit(compile(src))))
+defProgSrc =. ('foo =: ' , defSrc) , LF , 'bar =: 2'
+j1 =. emitIr optWithEnv lowerIr semAnalyze parseProgram lex defProgSrc
+j2 =. emitIr optWithEnv lowerIr semAnalyze parseProgram lex j1
+check j1 ; j2 ; <'def block: round-trip is a fixed point'

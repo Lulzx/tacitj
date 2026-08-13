@@ -135,6 +135,15 @@ lex =: classify @ (cutOn ` (cutOn=: ;:) @. isText) @ stripComments
 ```
 
 Token types are enumerated in `src/lex.ijs` (`T_NAME`, `T_VERB`, …).
+v0.19 additions:
+
+- `T_DEF` — a whole explicit-definition block (`3 : 0 ... )` /
+  `4 : 0 ... )`) captured verbatim as one token (see §4.7).
+- `_`-literals: `_1`, `_3.14`, `_` (infinity), `__` (negative
+  infinity), `_.` (NaN) lex as single `T_NUM` tokens.
+- Comment stripping is string-aware (`'NB.'` inside a string is
+  data, not a comment) and def-aware (comment lines inside a
+  def body are preserved verbatim so blocks round-trip).
 
 ### 4.2 Parser (`src/parse.ijs`)
 
@@ -179,6 +188,33 @@ infer =: (rankMatch * typeJoin) f.
   emitFork =: ' ( ' , u , ' ' , v , ' ' , w , ' ) ' "  _  NB. illustrative
   ```
 
+### 4.7 Explicit-Definition Blocks (v0.19)
+
+The single biggest blocker to self-host was that the compiler
+source is ~85 % `3 : 0` / `4 : 0` explicit definitions, which the
+Stage 0 pipeline could not lex or parse. v0.19 treats an explicit
+def as an **opaque verbatim block**:
+
+- **Lexer**: `3 : 0` / `4 : 0` at a token position starts a block
+  scan that captures every line verbatim up to the line whose
+  leading non-whitespace character is `)` — J's own terminator
+  rule. The block becomes one `T_DEF` token whose value is the raw
+  source (comments, strings, control words — all untouched).
+- **Parser**: `T_DEF` maps to an `AST_DEF` leaf and ends its
+  sentence (a def cannot be fused into a train with the next
+  sentence). Chained assignment `a =: b =: c` parses
+  right-associatively.
+- **IR**: `AST_DEF` lowers to `IR_DEF`; the unparser emits it
+  verbatim. The optimizer treats it as an opaque leaf.
+- **Result**: every `src/*.ijs` file compiles through the pipeline
+  and round-trips as a syntactic fixed point, and the emitted
+  modules re-load to a working compiler (`make selfhost-full`).
+
+Known remaining gaps: top-level execution statements
+(`load`, `smoutput`, `runArgv`) are emitted as unevaluated verb
+phrases; one-line explicit defs (`3 : '...'`) emit as
+parenthesised trains; `{{ }}` dfns are not yet captured.
+
 ### 4.6 Bootstrap Strategy (5 Stages)
 
 | Stage | Description | Language of compiler | Language compiled | Status |
@@ -186,7 +222,7 @@ infer =: (rankMatch * typeJoin) f.
 | **0** | Hand-written C/J hybrid bootstrap (tiny explicit interpreter for J–Tacit Core). | C / J stdlib | TacitJ | done |
 | **1** | TacitJ compiler written in explicit J, compiled by Stage 0. | explicit J | TacitJ | done (`make stage1`) |
 | **2** | Output-contract freeze + tacit-density baseline (round-trip fixed points over a canary corpus). | mixed J | TacitJ | done (`make stage2`) |
-| **3** | Full tacit version; `Stage3 =: Stage2 compile Stage3Source`. | TacitJ | TacitJ | partial (`make stage3`) |
+| **3** | Full tacit version; `Stage3 =: Stage2 compile Stage3Source`. | TacitJ | TacitJ | partial→advanced (`make stage3`, `make selfhost-full`) |
 | **4+** | Performance VM + LLVM backend. | TacitJ | TacitJ → native | planned |
 
 **Verification**:
@@ -205,6 +241,25 @@ subset and are skipped). Full self-host is blocked on
 rewriting the compiler source in the TacitJ subset (the Stage
 0 parser does not recognise `3 : 0`, `<`, `0!:0`, etc.) and on
 the IR pipeline handling the larger examples.
+
+**v0.19 (2026-08-14)**: the first hard blocker fell. The
+front-end now handles the constructs the compiler source
+actually uses: explicit-definition blocks (`3 : 0 ... )` /
+`4 : 0 ... )` as opaque verbatim tokens — new `T_DEF` token,
+`AST_DEF` node, `IR_DEF` opcode), string-aware and def-aware
+comment stripping (`'NB.'` inside a string is data), J
+`_`-literals (`_1`, `_3.14`, `_`, `__`, `_.`), chained
+assignment (`a =: b =: c`), and a parser progress guard (no
+infinite loops on zero-progress sentences). Every `src/*.ijs`
+file now compiles through the pipeline and round-trips as a
+syntactic fixed point (9/9), and the emitted (self-compiled)
+modules load and reproduce the Stage 0 output contract
+(`make selfhost-full`). Remaining honest gaps: top-level
+execution statements (`load`, `smoutput`, `runArgv`) emit as
+unevaluated verb phrases, one-line explicit defs
+(`3 : '...'`) emit as parenthesised trains, and the emitted
+compiler's `execIr`/`runTacitJ` execution path is not yet
+exercised end-to-end.
 
 ---
 
@@ -315,7 +370,13 @@ NB. -> 16
 4. **Examples** ✓ — `examples/{hello,mean,pipeline}.ijs`.
 5. **Stage 1** ✓ — compile a TacitJ file to a standalone J script (`make stage1`).
 6. **Stage 2** ✓ — output-contract freeze + tacit-density baseline (`make stage2`).
-7. **Stage 3** 🟡 partial — canary + corpus + safe examples verified as fixed points; full self-host blocked on the compiler source being rewritten in the TacitJ subset (`make stage3`).
+7. **Stage 3** 🟡→🟢 partial self-host advanced (`make stage3`,
+   `make selfhost-full`): canary + corpus + safe examples verified
+   as fixed points, and since v0.19 **every `src/*.ijs` file also
+   round-trips** (9/9 fixed points) and the self-compiled compiler
+   reproduces the output contract. Remaining: exec-path fidelity
+   (`execIr`/`runTacitJ` of emitted output) and the noun/verb
+   emission edge cases listed in §4.7.
 8. (Stage 4+) Replace `eval` with real bytecode/C codegen; performance VM + LLVM backend.
 9. (Stage 2 refactor) Raise the tacit-density fraction (72/125 today) while keeping the Stage 2 output contract green.
 10. Fix the latent IR-pipeline hang on `matrix`/`stats`/`poly`/`sort`/`moving` (distinct from `runTacitJ`, which runs them).

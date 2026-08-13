@@ -25,6 +25,7 @@ T_RPAREN  =: 7
 T_ASSIGN  =: 8
 T_EOF     =: 9
 T_SENT_END=: 10
+T_DEF     =: 11   NB. explicit-definition block (3 : 0 ... ) / 4 : 0 ... )
 T_BAD     =: _1
 
 NB. --- Character sets --------------------------------------
@@ -42,7 +43,7 @@ WS_CHARS  =: ' ' , TAB , CR , LF
 QUOTE     =: ''''
 
 NB. Token-type labels (for diagnostics)
-T_LABELS =: 'NAME';'VERB';'ADV';'CONJ';'NUM';'STR';'LPAREN';'RPAREN';'ASSIGN';'EOF';'SENT';'BAD'
+T_LABELS =: 'NAME';'VERB';'ADV';'CONJ';'NUM';'STR';'LPAREN';'RPAREN';'ASSIGN';'EOF';'SENT';'DEF';'BAD'
 
 NB. Sentinels for sentence-end and end-of-input.
 SENT_END =: T_SENT_END
@@ -81,15 +82,119 @@ isCommentLine =: 3 : 0
 NB. stripComment: remove 'NB. ...' from a single line.
 NB. y is a char vector. Result is the line with comment removed
 NB. (or unchanged if no comment).
+NB.
+NB. String-aware: a 'NB.' *inside a string literal* is data, not a
+NB. comment. This matters for self-host: the compiler source itself
+NB. contains literals like 'NB.' E. y which would otherwise be
+NB. truncated at the quote.
 stripComment =: 3 : 0
   line =. y
-  NB. Use {. to take the first match (i. may return multiple for short y).
-  pos =. {. line i. 'NB.'
-  if. pos < # line do.
-    pos {. line
-  else.
-    line
+  lim =. # line
+  inStr =. 0
+  i =. 0
+  while. i < lim do.
+    c =. i { line
+    if. c = QUOTE do.
+      if. inStr do.
+        NB. doubled quote inside a string: an escaped quote, skip both.
+        if. (i + 1) < lim do.
+          if. ((i + 1) { line) = QUOTE do. i =. i + 2 continue. end.
+        end.
+        inStr =. 0
+      else.
+        inStr =. 1
+      end.
+    elseif. -. inStr do.
+      if. c = 'N' do.
+        if. (i + 1) < lim do.
+          if. ((i + 1) { line) = 'B' do.
+            if. (i + 2) < lim do.
+              if. ((i + 2) { line) = '.' do.
+                i {. line return.
+              end.
+            end.
+          end.
+        end.
+      end.
+    end.
+    i =. >: i
   end.
+  line
+)
+
+NB. defOpenAt: index of an explicit-definition opener ('3 : 0' or
+NB. '4 : 0') in line, or _1 if none. String-aware: the opener must
+NB. not be inside a string literal.
+NB. y = char vector (one line)
+NB. Result = integer index of the opener's first digit, or _1.
+defOpenAt =: 3 : 0
+  line =. y
+  lim =. # line
+  inStr =. 0
+  i =. 0
+  while. i < lim do.
+    c =. i { line
+    if. c = QUOTE do.
+      if. inStr do.
+        if. (i + 1) < lim do.
+          if. ((i + 1) { line) = QUOTE do. i =. i + 2 continue. end.
+        end.
+        inStr =. 0
+      else.
+        inStr =. 1
+      end.
+    elseif. -. inStr do.
+      NB. A 'NB.' comment (as a word) ends the search: an opener
+      NB. after a comment is not an opener. Comment-ness requires
+      NB. the 'N' to start a word (line start or preceded by a space).
+      if. c = 'N' do.
+        if. (i = 0) +. ((i - 1) { line) e. ' ' , TAB do.
+          if. (i + 1) < lim do.
+            if. ((i + 1) { line) = 'B' do.
+              if. (i + 2) < lim do.
+                if. ((i + 2) { line) = '.' do.
+                  _1 return.
+                end.
+              end.
+            end.
+          end.
+        end.
+      end.
+      if. (c = '3') +. (c = '4') do.
+        NB. Match: digit (ws*) ':' (ws*) '0'
+        j =. >: i
+        while. j < lim do.
+          if. -. (j { line) e. ' ' , TAB do. break. end.
+          j =. >: j
+        end.
+        if. j < lim do.
+          if. (j { line) = ':' do.
+            j =. >: j
+            while. j < lim do.
+              if. -. (j { line) e. ' ' , TAB do. break. end.
+              j =. >: j
+            end.
+            if. j < lim do.
+              if. (j { line) = '0' do.
+                i return.
+              end.
+            end.
+          end.
+        end.
+      end.
+    end.
+    i =. >: i
+  end.
+  _1
+)
+
+NB. isDefClose: does line close an explicit-definition block?
+NB. J closes a def opened with `3 : 0` at the first line whose
+NB. leading non-whitespace character is ')'.
+isDefClose =: 3 : 0
+  line =. trimLeft y
+  if. 0 = # line do. 0 return. end.
+  (0 { line) = ')'
 )
 
 NB. splitOnLF: split a char vector on LF, returning a boxed list
@@ -140,27 +245,39 @@ joinLines =: 3 : 0
 
 NB. stripComments: remove comments from source.
 NB. y is a char vector. Result is char vector with comments removed.
+NB.
+NB. Def-aware: lines inside an explicit-definition block
+NB. (`3 : 0 ... )` / `4 : 0 ... )`) are copied verbatim — comments
+NB. inside a def body are layout, not lexical trivia, and the block
+NB. must round-trip byte-identically through the lexer's def capture.
 stripComments =: 3 : 0
   src =. y
   lines =. splitOnLF src
-  cleaned =. stripLines lines
-  joinLines cleaned
-)
-
-NB. stripLines: strip comments from a boxed list of lines.
-NB. y is a boxed list of char vectors. Result is a boxed list of
-NB. stripped char vectors (same length as y).
-stripLines =: 3 : 0
-  lines =. y
   n =. # lines
   out =. ''
   i =. 0
   while. i < n do.
-    out =. out , < stripComment > i { lines
-    i =. >: i
+    line =. > i { lines
+    if. 0 <: defOpenAt line do.
+      NB. Opener line + every body line copied verbatim until the
+      NB. closing ')' line.
+      out =. out , <line
+      i =. >: i
+      while. i < n do.
+        bl =. > i { lines
+        out =. out , <bl
+        i =. >: i
+        if. isDefClose bl do. break. end.
+      end.
+    else.
+      out =. out , < stripComment line
+      i =. >: i
+    end.
   end.
-  out
+  joinLines out
 )
+
+NB. --- Reader helpers (return end position) ---------------
 
 
 
@@ -201,6 +318,33 @@ readNumber =: 3 : 0
     end.
   end.
   q
+)
+
+NB. readSignedNumber: arg = (pos ; src) -> endPos
+NB. Reads a negative-number / infinity token starting at the '_':
+NB.   _<digits>[.<digits>]  e.g. _1, _3.14, _1.
+NB.   _                     infinity
+NB.   __                    negative infinity
+NB.   _.                    NaN
+readSignedNumber =: 3 : 0
+  'p src' =. y
+  lim =. # src
+  q =. >: p
+  if. q < lim do.
+    c =. q { src
+    if. c = '_' do.
+      NB. '__' -> negative infinity
+      >: q
+    elseif. c = '.' do.
+      NB. '_.' -> NaN
+      >: q
+    else.
+      NB. '_' <number>: reuse the unsigned reader from q.
+      readNumber (q ; src)
+    end.
+  else.
+    q
+  end.
 )
 
 NB. readString: arg = (pos ; src) -> endPos (position after closing quote)
@@ -255,6 +399,89 @@ collapseDoubledQuotes =: 3 : 0
 )
 
 NB. --- Top-level lexer -------------------------------------
+
+NB. defStartAt: does the source at position p start an
+NB. explicit-definition opener ('3 : 0' / '4 : 0')?
+NB. y = (pos ; src). Result = 0 or 1.
+NB. The lexer is always in code position here (strings are consumed
+NB. whole by lexOne), so no string-awareness is needed.
+defStartAt =: 3 : 0
+  'p src' =. y
+  lim =. # src
+  if. p >: lim do. 0 return. end.
+  if. -. (p { src) e. '34' do. 0 return. end.
+  q =. >: p
+  while. q < lim do.
+    if. -. (q { src) e. ' ' , TAB do. break. end.
+    q =. >: q
+  end.
+  if. q >: lim do. 0 return. end.
+  if. -. (q { src) = ':' do. 0 return. end.
+  q =. >: q
+  while. q < lim do.
+    if. -. (q { src) e. ' ' , TAB do. break. end.
+    q =. >: q
+  end.
+  if. q >: lim do. 0 return. end.
+  (q { src) = '0'
+)
+
+NB. readDefBlock: read an explicit-definition block.
+NB. y = (pos ; src), pos pointing at the '3'/'4' of a def opener.
+NB. Result = 2-box: (rawBlock ; endPos).
+NB. The block runs from the opener through the closing ')' line
+NB. (J closes a `3 : 0` body at the first line whose leading
+NB. non-whitespace character is ')'). If no terminator is found,
+NB. the rest of the source is the block.
+readDefBlock =: 3 : 0
+  'p src' =. y
+  lim =. # src
+  NB. Advance past 'digit (ws) ':' (ws) '0'' to the opener-line end.
+  t =. >: p
+  while. t < lim do.
+    if. -. (t { src) e. ' ' , TAB do. break. end.
+    t =. >: t
+  end.
+  if. t >: lim do. (lim - p) {. p }. src ; lim return. end.
+  t =. >: t                        NB. skip ':'
+  while. t < lim do.
+    if. -. (t { src) e. ' ' , TAB do. break. end.
+    t =. >: t
+  end.
+  if. t >: lim do. (lim - p) {. p }. src ; lim return. end.
+  t =. >: t                        NB. skip '0'
+  while. t < lim do.
+    if. (t { src) = LF do. break. end.
+    t =. >: t
+  end.
+  q =. t
+  while. q < lim do.
+    q =. >: q                      NB. consume the LF
+    i =. q
+    while. i < lim do.
+      if. -. (i { src) e. ' ' , TAB , CR do. break. end.
+      i =. >: i
+    end.
+    if. i < lim do.
+      if. (i { src) = ')' do.
+        e =. i + 1
+        NB. Stop exactly at the ')' — the trailing LF is left for
+        NB. the main lex loop, which then emits a SENT_END between
+        NB. the def and the next sentence (matching the non-def path).
+        ((e - p) {. p }. src) ; e
+        return.
+      end.
+      while. q < lim do.
+        if. (q { src) = LF do. break. end.
+        q =. >: q
+      end.
+    else.
+      (lim - p) {. p }. src ; lim
+      return.
+    end.
+  end.
+  (lim - p) {. p }. src ; lim
+)
 
 NB. lex: tokenise source char vector y.
 NB. Returns a boxed vector of tokens. Last token is always T_EOF.
@@ -314,13 +541,22 @@ lex =: 3 : 0
     elseif. c e. (TAB , ' ' , CR) do.
       p =. >: p
     else.
-      'tok endP' =. lexOne (p ; src)
-      toks =. toks , <tok
-      p =. endP
-      lineHasTok =. 1
-      t0 =. tokType <tok
-      if. t0 = T_LPAREN do. depth =. >: depth end.
-      if. t0 = T_RPAREN do. depth =. <: depth end.
+      NB. Explicit-definition opener: capture the whole block
+      NB. (3 : 0 ... ) / 4 : 0 ... )) as a single T_DEF token.
+      if. defStartAt (p ; src) do.
+        'raw endP' =. readDefBlock (p ; src)
+        toks =. toks , <((<T_DEF) ; <raw)
+        p =. endP
+        lineHasTok =. 1
+      else.
+        'tok endP' =. lexOne (p ; src)
+        toks =. toks , <tok
+        p =. endP
+        lineHasTok =. 1
+        t0 =. tokType <tok
+        if. t0 = T_LPAREN do. depth =. >: depth end.
+        if. t0 = T_RPAREN do. depth =. <: depth end.
+      end.
     end.
   end.
   toks , <((<T_EOF) ; <'')
@@ -347,6 +583,22 @@ lexOne =: 3 : 0
     NB. Both form a single T_ASSIGN token. Checked here so the
     NB. leading `=` isn't classified as a PRIM_VERB.
     ((<T_ASSIGN) ; <(c , ((p + 1) { src))); p + 2
+  elseif. c = '_' do.
+    NB. Negative-number / infinity tokens: _1, _3.14, _1., _ (infinity),
+    NB. __ (negative infinity), _. (NaN). Checked BEFORE the digit
+    NB. branch (via readSignedNumber) so the leading `_` isn't a T_BAD.
+    NB. (Nested guards: J's `*.` does not short-circuit.)
+    if. (p + 1) < lim do.
+      if. ((p + 1) { src) e. (DIGITS , '_.') do.
+        endP =. readSignedNumber (p ; src)
+        raw  =. (endP - p) {. p }. src
+        ((<T_NUM) ; <raw) ; endP
+      else.
+        ((<T_BAD) ; <'_') ; (>: p)
+      end.
+    else.
+      ((<T_BAD) ; <'_') ; (>: p)
+    end.
   elseif. (c e. CONJ_TWO_CHAR) *. ((p + 1) < lim) *. ((p + 1) { src) = ':' do.
     NB. Two-char conjunction: @: (atop w/ rank), &: (bond w/ rank),
     NB. ^: (power w/ rank). Checked BEFORE the verb list because

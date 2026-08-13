@@ -47,6 +47,7 @@ opMdlCost =: 3 : 0
   elseif. op = IR_ASSN   do. 2     NB. assignment
   elseif. op = IR_SEQ    do. 1     NB. sequence
   elseif. op = IR_PROG   do. 1     NB. program
+  elseif. op = IR_DEF    do. 1     NB. explicit-def block (opaque leaf)
   else.                     0
   end.
 )

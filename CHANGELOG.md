@@ -4,6 +4,72 @@ All notable changes to TacitJ are recorded here. The format is
 loosely based on [Keep a Changelog](https://keepachangelog.com/),
 and the project does not yet follow SemVer.
 
+## [0.19] - 2026-08-14
+
+**Stage 3 breakthrough: the compiler now compiles through itself.**
+The hard blocker for self-host was that the compiler source
+(`src/*.ijs`) is ~85 % explicit J definitions the Stage 0 front-end
+could not lex or parse. v0.19 teaches the front-end the constructs
+the compiler source actually uses, with the result that every
+`src/*.ijs` file compiles through the pipeline as a syntactic fixed
+point (9/9) and the emitted modules re-load to a working compiler
+that reproduces the Stage 0 output contract (`make selfhost-full`).
+
+### Added
+
+- **Explicit-definition blocks** (`src/lex.ijs`, `src/parse.ijs`,
+  `src/ir.ijs`, `src/opt.ijs`, `src/mdl.ijs`):
+  - New `T_DEF` token: a whole `3 : 0 ... )` / `4 : 0 ... )` body
+    captured verbatim (comments, strings, control words intact).
+  - New `AST_DEF` node and `IR_DEF` opcode; the unparser emits the
+    block byte-identically; the optimizer treats it as an opaque
+    leaf.
+  - The lexer stops the block at J's own terminator rule (a line
+    whose leading non-whitespace char is `)`), and the parser ends
+    the sentence after a def (no train fusion with the next line).
+- **String-aware comment stripping**: a `NB.` *inside a string
+  literal* is data, not a comment. Fixes a latent bug that fired
+  the moment the compiler started compiling its own source
+  (e.g. `'NB.' E. y` was truncated at the quote).
+- **Def-aware comment stripping**: comment lines inside a def body
+  are preserved verbatim so blocks round-trip.
+- **`_`-literals**: `_1`, `_3.14`, `_1.`, `_` (infinity),
+  `__` (negative infinity), `_.` (NaN) lex as single `T_NUM`
+  tokens (previously `_1` lexed as `BAD _` + `NUM 1`).
+- **Chained assignment**: `a =: b =: c` parses and round-trips
+  (J's right-associative `a =: (b =: (c =: ...))`).
+- **Parser progress guard**: `parseProgRec` drops a token instead
+  of looping forever when a sentence makes no progress (fixes a
+  latent infinite loop on zero-progress sentences).
+- **String-vs-primitive IR tag** (`irStr`): a string literal that
+  looks like a primitive (`'<.'`, `'+.'`, `'@:'`) is re-quoted on
+  emit instead of silently becoming a verb literal.
+- **`bootstrap/selfhost_full.ijs`** + `make selfhost-full`:
+  compiles every `src/*.ijs` through the pipeline, verifies 9/9
+  fixed points, loads the emitted modules in a clean locale, and
+  verifies the self-compiled compiler reproduces the canary output
+  contract. Wired into `make ci`.
+
+### Fixed
+
+- `stripComment` truncated code at a `NB.` inside a string literal.
+- `parseProgRec` infinite-looped on zero-progress sentences
+  (e.g. chained `=:` as in `src/sem.ijs`).
+- `groupedOf` index-errored on empty EXPR children (`*.` in J does
+  not short-circuit; guards are now nested `if.`).
+- `unparseIrLit` emitted 2-char primitive-looking string literals
+  unquoted, silently changing `'<.'` into the verb `<.`.
+- `lexOne` emitted `BAD _` for negative-number literals.
+
+### Known gaps (honest)
+
+- Top-level execution statements (`load`, `smoutput`, `runArgv`)
+  are emitted as unevaluated verb phrases.
+- One-line explicit defs (`3 : '...'`) emit as parenthesised
+  trains; `{{ }}` dfns are not yet captured.
+- The emitted compiler's execution path (`execIr` / `runTacitJ`)
+  is not yet exercised end-to-end.
+
 ## [0.1.0] - 2026-06-25
 
 First public release. Stage 0 + Stage 1 + bootstrap scaffolding.

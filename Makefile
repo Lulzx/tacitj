@@ -16,7 +16,7 @@ EXAMPLE_DIR:= examples
 SRCS  := $(wildcard $(SRC_DIR)/*.ijs)
 TESTS := $(wildcard $(TEST_DIR)/*.ijs)
 
-.PHONY: all test smoke run clean install-j help stage0 stage1 stage2 stage3 stage3-attempt bootstrap selfhost bench mdl-demo trace verify smoke-all ci
+.PHONY: all test smoke run clean install-j help stage0 stage1 stage2 stage3 stage3-attempt bootstrap selfhost selfhost-full bench mdl-demo trace verify smoke-all ci
 
 all: test
 
@@ -34,12 +34,13 @@ help:
 	@echo "  make stage3-attempt - run the stage-3 self-host baseline"
 	@echo "  make bootstrap    - run stage0 -> stage1 -> stage2 -> stage3"
 	@echo "  make selfhost     - smoke-test self-compilation"
+	@echo "  make selfhost-full - compiler compiles through itself (9/9 src files fixed points)"
 	@echo "  make bench        - run compile/exec benchmark suite"
 	@echo "  make mdl-demo     - run the MDL / grammar-induction demo"
 	@echo "  make trace        - run the pipeline-trace demo"
 	@echo "  make verify       - bootstrap determinism / env-bleed check"
 	@echo "  make smoke-all    - run every example as a smoke test"
-	@echo "  make ci           - run test + verify + smoke-all + bootstrap (CI gate)"
+	@echo "  make ci           - run test + verify + smoke-all + bootstrap + selfhost-full (CI gate)"
 	@echo "  make clean        - remove build artifacts"
 
 install-j:
@@ -96,6 +97,9 @@ selfhost: install-j
 	@cat bin/stage1_hello.ijs
 	@echo "selfhost: OK"
 
+selfhost-full: install-j
+	$(JC) $(JFLAGS) bootstrap/selfhost_full.ijs
+
 bench: install-j
 	$(JC) $(JFLAGS) bench/bench.ijs
 
@@ -111,7 +115,7 @@ verify: install-j
 smoke-all: install-j
 	$(JC) $(JFLAGS) bench/smoke_all.ijs
 
-ci: test verify smoke-all bootstrap
+ci: test verify smoke-all bootstrap selfhost-full
 	@echo "ci: all checks passed"
 
 clean:
