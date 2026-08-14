@@ -115,3 +115,78 @@ NB. bodies (verbatim), i.e. the output is not truncated.
 lexEmit =. compileFileToJs 'src/lex.ijs'
 assert (0 < +/ 'stripComments =: 3 : 0' E. lexEmit) ; 1 ; <'selfhost: emitted lex.ijs keeps def bodies'
 
+
+NB. --- v0.20: dfn, one-line defs, 2-char verbs, exec path ----
+
+NB. A {{ }} dfn compiles and executes through the pipeline.
+r =. compile 'double =: {{ y * 2 }}', LF, 'double 5'
+assert r ; 10 ; <'compile: {{ }} dfn double 5 = 10'
+
+NB. A one-line explicit def compiles and executes.
+r =. compile 'f =: 3 : ''y + 1''', LF, 'f 5'
+assert r ; 6 ; <'compile: one-line def f 5 = 6'
+
+NB. The format verb ": unparses unquoted and executes.
+r =. compile 'smoutput ":" 42'
+assert (# r) ; (# r) ; <'compile: ": format (no crash)'
+
+NB. The integers verb i. compiles and executes.
+r =. compile '+/ i. 5'
+assert r ; 10 ; <'compile: +/ i. 5 = 10'
+
+NB. The stitch verb ,. compiles and executes.
+r =. compile '1 2 ,. 3 4'
+assert r ; (2 2 $ 1 3 2 4) ; <'compile: 1 2 ,. 3 4 = 2x2 stitch'
+
+NB. --- Exec-path fidelity: emitted compiler runs end-to-end --
+NB. Emit all modules, load them in a fresh locale, and run a
+NB. program through the emitted compiler's own `compile` verb
+NB. (lex -> parse -> sem -> lowerIr -> opt -> execIr).
+emitAllModules =: 3 : 0
+  shortNames =. 'lex';'parse';'sem';'ir';'opt';'eval';'codegen';'mdl';'tacitj'
+  i =. 0
+  while. i < # srcFiles do.
+    path =. > i { srcFiles
+    src =. 1!:1 < path
+    resetOptEnv ''
+    ir =. optWithEnv lowerIr semAnalyze parseProgram lex src
+    j =. emitIr ir
+    j 1!:2 < ('/tmp/tacitj_selfhost_' , (> i { shortNames)) , '.ijs'
+    i =. >: i
+  end.
+  EMPTY
+)
+emitAllModules ''
+cocurrent 'sh'
+load '/tmp/tacitj_selfhost_lex.ijs'
+load '/tmp/tacitj_selfhost_parse.ijs'
+load '/tmp/tacitj_selfhost_sem.ijs'
+load '/tmp/tacitj_selfhost_ir.ijs'
+load '/tmp/tacitj_selfhost_opt.ijs'
+load '/tmp/tacitj_selfhost_eval.ijs'
+load '/tmp/tacitj_selfhost_codegen.ijs'
+load '/tmp/tacitj_selfhost_mdl.ijs'
+load '/tmp/tacitj_selfhost_tacitj.ijs'
+cocurrent 'base'
+rSelf =. compile_sh_ '2 + 3'
+assert rSelf ; 5 ; <'selfhost: emitted compiler exec path 2 + 3 = 5'
+rSelf2 =. compile_sh_ 'mean =: +/ % #', LF, 'mean 1 2 3 4 5'
+assert rSelf2 ; 3 ; <'selfhost: emitted compiler exec path mean 1..5 = 3'
+
+NB. --- v0.21: gerund tie ` and agenda @. (SPEC 2.1) ---------
+
+NB. A gerund (tie) compiles and executes; 0 { g is the boxed 'hello'.
+r =. compile 'g =: (<''hello'')`]', LF, '0 { g'
+assert r ; (<'hello') ; <'compile: gerund g ; 0 { g = boxed hello'
+
+NB. Agenda @. with constant verbs: pick 3 (odd) = 1, pick 4 (even) = 0.
+r =. compile 'pick =: 0:`1:`2: @. (2&|)', LF, 'pick 3'
+assert r ; 1 ; <'compile: agenda pick 3 = 1'
+r =. compile 'pick =: 0:`1:`2: @. (2&|)', LF, 'pick 4'
+assert r ; 0 ; <'compile: agenda pick 4 = 0'
+
+NB. Constant verb round-trips as a fixed point.
+cvSrc =. 'c =: 0:'
+cv1 =. compileSrcToJs cvSrc
+cv2 =. compileSrcToJs cv1
+assert cv1 ; cv2 ; <'compile: 0: constant verb is a fixed point'

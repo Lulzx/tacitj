@@ -1,8 +1,8 @@
 # TacitJ — Technical Specification
 
 **Codename**: SolonJ / TacitBoot
-**Version**: 0.1 (Draft, MVP-ready)
-**Date**: 2026-06-22
+**Version**: 0.21 (Draft, MVP-ready)
+**Date**: 2026-08-14
 **Status**: Actionable blueprint for MVP → full self-host
 
 ---
@@ -45,7 +45,9 @@ interests:
 - Nouns (literals, names).
 - Verbs, adverbs, conjunctions (limited set — see `src/lex.ijs`).
 - Full tacit: 2-/3-trains, hooks, forks, atop, compose, etc.
-- Gerunds (`m`v`) and agenda (`u`m`v`).
+- Gerunds (`m`v`) and agenda (`u`m`v`) — implemented in v0.21
+  (backtick tie `` ` `` and `@.` lex/parse/unparse; constant verbs
+  `0:`–`9:` are single tokens).
 - Basic control: explicit `{{ }}` dfns only for non-tacit fallbacks.
 - Arrays, shapes, ranks, boxing.
 
@@ -210,10 +212,14 @@ def as an **opaque verbatim block**:
   and round-trips as a syntactic fixed point, and the emitted
   modules re-load to a working compiler (`make selfhost-full`).
 
-Known remaining gaps: top-level execution statements
-(`load`, `smoutput`, `runArgv`) are emitted as unevaluated verb
-phrases; one-line explicit defs (`3 : '...'`) emit as
-parenthesised trains; `{{ }}` dfns are not yet captured.
+v0.20 closed the remaining gaps: top-level execution
+statements (`load`, `smoutput`, `runArgv`) execute correctly
+through the emitted compiler's exec path (they are no longer
+unevaluated verb phrases); one-line explicit defs (`3 : '...'`)
+are captured verbatim as `T_DEF` (no parenthesised-train
+emission); and `{{ }}` direct definitions are captured as opaque
+`T_DEF` tokens (single-line and multi-line). v0.21 adds gerund
+tie (`` ` ``) and agenda (`@.`) support (SPEC §2.1).
 
 ### 4.6 Bootstrap Strategy (5 Stages)
 
@@ -234,13 +240,15 @@ parenthesised trains; `{{ }}` dfns are not yet captured.
 corpus where `emit(compile(src)) == emit(compile(emit(compile(src))))`
 (round-trip fixed point), plus a tacit-density baseline over
 `src/*.ijs` (72 tacit / 125 explicit). **Stage 3** proves the
-canary + corpus + 6 safe examples are fixed points and
-honestly classifies the rest (`pipeline` is not a fixed point;
-`matrix`/`stats`/`poly`/`sort`/`moving` exceed the current IR
-subset and are skipped). Full self-host is blocked on
-rewriting the compiler source in the TacitJ subset (the Stage
-0 parser does not recognise `3 : 0`, `<`, `0!:0`, etc.) and on
-the IR pipeline handling the larger examples.
+canary + corpus + safe examples are fixed points. Since v0.21
+the IR pipeline also handles the larger examples
+(`matrix`/`stats`/`poly`/`sort`/`moving`), which now round-trip
+as fixed points (previously they exceeded the IR subset and
+were skipped). Full self-host is blocked only on rewriting the
+compiler source in the TacitJ subset (the Stage 0 parser does
+not recognise `3 : 0`, `<`, `0!:0`, etc.); the front-end now
+handles the constructs the compiler source actually uses (see
+v0.19–v0.21 below).
 
 **v0.19 (2026-08-14)**: the first hard blocker fell. The
 front-end now handles the constructs the compiler source
@@ -254,12 +262,26 @@ infinite loops on zero-progress sentences). Every `src/*.ijs`
 file now compiles through the pipeline and round-trips as a
 syntactic fixed point (9/9), and the emitted (self-compiled)
 modules load and reproduce the Stage 0 output contract
-(`make selfhost-full`). Remaining honest gaps: top-level
-execution statements (`load`, `smoutput`, `runArgv`) emit as
-unevaluated verb phrases, one-line explicit defs
-(`3 : '...'`) emit as parenthesised trains, and the emitted
-compiler's `execIr`/`runTacitJ` execution path is not yet
-exercised end-to-end.
+(`make selfhost-full`).
+
+**v0.20 (2026-08-14)**: closed the remaining §4.7 gaps. `{{ }}`
+direct definitions and one-line explicit defs (`3 : '...'`)
+are captured verbatim as `T_DEF`; the two-char verbs `":`, `,.`,
+`i.`, `e.`, `o.`, `j.`, `r.`, `{.`, `}.`, `/:` and `\:` lex as
+single tokens; the semantic pass (`src/sem.ijs`) implements
+SPEC §4.3 (shape/type inference, well-formedness, constant
+folding, dead-code elimination); and the emitted compiler's
+`execIr`/`runTacitJ` execution path is exercised end-to-end
+(`make selfhost-full` reports `exec-path fidelity: 1`).
+
+**v0.21 (2026-08-14)**: SPEC §2.1 gerunds and agenda are now
+implemented. The backtick tie (`` ` ``) and `@.` (agenda) lex
+as single `T_CONJ` tokens, constant verbs `0:`–`9:` lex as
+single `T_VERB` tokens, and all unparse unquoted so gerund /
+agenda programs round-trip as fixed points and execute. The
+IR pipeline also handles the larger examples (`matrix`,
+`stats`, `poly`, `sort`, `moving`) — they are fixed points
+(§10 item 10).
 
 ---
 
@@ -335,7 +357,9 @@ runTacitJ =: 1 : '". ns bind (unparse ;.0) parse lex y'
 ```j
 NB. examples/hello.ijs
 NB. Define a tacit hook that returns "hello" or "world" based on x
-greet =: 'hello'`] @. (1&=) @ ,
+NB. (v0.21: gerund tie ` and agenda @. are supported; a string
+NB. constant in a gerund must be boxed, per J's tie semantics.)
+greet =: (<'hello')`] @. (1&=) @ ,
 greet 0
 greet 1
 ```
@@ -370,13 +394,14 @@ NB. -> 16
 4. **Examples** ✓ — `examples/{hello,mean,pipeline}.ijs`.
 5. **Stage 1** ✓ — compile a TacitJ file to a standalone J script (`make stage1`).
 6. **Stage 2** ✓ — output-contract freeze + tacit-density baseline (`make stage2`).
-7. **Stage 3** 🟡→🟢 partial self-host advanced (`make stage3`,
+7. **Stage 3** 🟢 self-host advanced (`make stage3`,
    `make selfhost-full`): canary + corpus + safe examples verified
-   as fixed points, and since v0.19 **every `src/*.ijs` file also
-   round-trips** (9/9 fixed points) and the self-compiled compiler
-   reproduces the output contract. Remaining: exec-path fidelity
-   (`execIr`/`runTacitJ` of emitted output) and the noun/verb
-   emission edge cases listed in §4.7.
+   as fixed points, and **every `src/*.ijs` file round-trips**
+   (9/9 fixed points); the self-compiled compiler reproduces the
+   output contract and its exec path runs end-to-end
+   (`exec-path fidelity: 1`). The §4.7 noun/verb emission edge
+   cases (one-line defs, `{{ }}` dfns, top-level execution
+   statements) are closed in v0.20.
 8. (Stage 4+) Replace `eval` with real bytecode/C codegen; performance VM + LLVM backend.
 9. (Stage 2 refactor) Raise the tacit-density fraction (72/125 today) while keeping the Stage 2 output contract green.
-10. Fix the latent IR-pipeline hang on `matrix`/`stats`/`poly`/`sort`/`moving` (distinct from `runTacitJ`, which runs them).
+10. ✓ Fix the latent IR-pipeline hang on `matrix`/`stats`/`poly`/`sort`/`moving` (distinct from `runTacitJ`, which runs them). v0.21: all five now lex→parse→sem→lower→opt→emit and round-trip as fixed points.

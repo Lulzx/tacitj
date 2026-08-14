@@ -33,10 +33,12 @@ itself (a *self-hosting* bootstrap).
 > baseline. **Since v0.19 the compiler compiles through itself**: every
 > `src/*.ijs` file round-trips as a syntactic fixed point (9/9), and the
 > emitted (self-compiled) modules load and reproduce the Stage 0 output
-> contract (`make selfhost-full`). Remaining honest gaps: the emitted
-> compiler's execution path (`execIr`/`runTacitJ`) is not yet exercised
-> end-to-end, and a few top-level emission edge cases (see §4.7 in
-> SPEC.md).
+> contract (`make selfhost-full`). Since v0.20 the emitted compiler's
+> execution path (`execIr`/`runTacitJ`) is exercised end-to-end
+> (`exec-path fidelity: 1`), and v0.21 closes the last documented
+> language-subset gap (gerunds and agenda, SPEC §2.1). The full
+> `compile` pipeline now round-trips every example — including
+> `matrix`/`stats`/`poly`/`sort`/`moving` — as a fixed point.
 
 The interesting twist: the optimiser is designed to integrate **MDL-inspired compression**
 (grammar induction over J expressions), so writing *less* code actually makes the
@@ -163,7 +165,7 @@ $ make test
   PASS  compileFile: returns 0 on success
 
 === Summary ===
-95 passed, 0 failed.
+225 passed, 0 failed.
 ```
 
 ### 4. Writing TacitJ programs
@@ -388,7 +390,7 @@ brew install --cask j
 git clone https://github.com/Lulzx/tacitj.git
 cd tacitj
 
-# Run the test suite (95 tests)
+# Run the test suite (225 tests)
 make test
 
 # Run an example
@@ -529,16 +531,15 @@ Stage 2 freezes the **output contract**: a 5-case canary
 corpus where `emit(compile(src)) == emit(compile(emit(compile(src))))`
 (round-trip fixed point), and records a tacit-density
 baseline over `src/*.ijs` (72 tacit / 125 explicit). Stage 3
-proves the canary + corpus + 6 safe examples are fixed points
-and honestly classifies the rest: `pipeline` compiles but is
-not a fixed point; `matrix`/`stats`/`poly`/`sort`/`moving`
-exceed the current IR subset (the IR pipeline hangs on them —
-a latent Stage 0 bug; `runTacitJ` runs them fine) and are
-skipped. **Since v0.19 the compiler source itself is no longer
-a blocker**: every `src/*.ijs` file compiles through the
-pipeline as a syntactic fixed point (9/9), and the emitted
-modules load in a clean namespace and reproduce the Stage 0
-output contract (`make selfhost-full`).
+proves the canary + corpus + 6 safe examples are fixed points.
+**Since v0.19 the compiler source itself is no longer a blocker**:
+every `src/*.ijs` file compiles through the pipeline as a syntactic
+fixed point (9/9), and the emitted modules load in a clean namespace
+and reproduce the Stage 0 output contract (`make selfhost-full`).
+**Since v0.21 the IR pipeline handles the larger examples too**:
+`matrix`/`stats`/`poly`/`sort`/`moving` now
+lex→parse→sem→lower→opt→emit and round-trip as fixed points
+(SPEC §10 item 10), so every example in `examples/` is a fixed point.
 
 ### Stage 0 language subset
 
@@ -552,14 +553,18 @@ The Stage 0 lexer/parser recognises:
 - **Adverbs**: `/ \ ~ . :`  (insert, prefix/suffix, reflexive, etc.)
 - **Conjunctions (single char)**: `@ & ^ !`  (atop, bond, power, fit)
 - **Conjunctions (two char)**: `@: &: ^:` (atop/bond/power with rank)
-- **Assignment**: `=:`
+- **Gerunds / agenda**: backtick tie (`` ` ``), `@.` (agenda), and
+  constant verbs `0:`–`9:`
+- **Direct definitions**: `{{ }}` dfns and one-line explicit defs
+  (`3 : '...'` / `4 : '...'`) captured verbatim as `T_DEF`
+- **Assignment**: `=:` and `=.`
 - **Literals**: numbers, single-quoted strings (with `''` escape)
 - **Parens**: `( expr )` for grouping
 - **Comments**: `NB.` to end of line
 
-Known not-yet-supported: `@:` (with-rank compose), `~:/\ ` (not-equal
-scan), the adverb `\: ` (suffix). These are tracked in
-`bootstrap/stage3_attempt.ijs` as future work.
+Known not-yet-supported: `~:/\ ` (not-equal scan) and the adverb
+`\: ` (suffix). These are tracked in `bootstrap/stage3_attempt.ijs`
+as future work.
 
 `make stage3-attempt` runs `bootstrap/stage3_attempt.ijs`, which:
 - re-checks the Stage 0 canary (`( 1 + 2 )|9`)
@@ -820,6 +825,41 @@ MDL minimizer (each corpus IR):
   `examples/moving.ijs`. `make smoke-all` now runs 12
   examples.
 
+### What's new in v0.21
+
+- **Gerunds and agenda (SPEC §2.1)** — the last documented
+  language-subset gap. The backtick tie (`` ` ``) and `@.` (agenda)
+  lex as single `T_CONJ` tokens, and constant verbs `0:`–`9:` lex as
+  single `T_VERB` tokens. They unparse unquoted, so gerund / agenda
+  programs round-trip as fixed points and execute.
+- **IR pipeline handles the larger examples** — `matrix`, `stats`,
+  `poly`, `sort`, `moving` now lex→parse→sem→lower→opt→emit and
+  round-trip as fixed points (SPEC §10 item 10; previously they
+  exceeded the IR subset and were skipped). Every example in
+  `examples/` is now a fixed point.
+- **SPEC.md appendix fix** — the gerund example now uses the valid
+  boxed form `(<'hello')`]` (a char-vector tie is a domain error in J).
+
+### What's new in v0.20
+
+- **`{{ }}` direct definitions** — single-line and multi-line dfns
+  captured as opaque `T_DEF` tokens (a `{{ }}` inside a string is
+  data, not a dfn opener).
+- **One-line explicit defs** — `3 : '...'` / `4 : '...'` captured
+  verbatim as `T_DEF`.
+- **More two-char verbs** — `":`, `,.`, `i.`, `e.`, `o.`, `j.`,
+  `r.`, `{.`, `}.`, `/:`, `\:` lex as single `T_VERB` tokens and
+  unparse unquoted.
+- **Semantic analysis (SPEC §4.3)** — shape/type inference
+  (`infer`), well-formedness (`semValidate`), constant folding
+  (`semFold`), and dead-code elimination (`semDce`).
+- **Exec-path fidelity** — the emitted (self-compiled) compiler's
+  `execIr`/`runTacitJ` path is exercised end-to-end
+  (`make selfhost-full` reports `exec-path fidelity: 1`).
+- **Per-program namespaces** — `runTacitJ` executes in a fresh
+  locale and restores the caller's locale, so names do not leak
+  between programs.
+
 ### What's new in v0.19
 
 - **Self-host breakthrough**: every `src/*.ijs` file now compiles
@@ -848,11 +888,9 @@ MDL minimizer (each corpus IR):
 - **`make stage3`** — Stage 3: honest partial self-host
   milestone. Proves the canary + corpus + 6 safe examples
   (`hello`, `mean`, `train`, `wordcount`, `fib`, `rank`) are
-  fixed points. Classifies the rest: `pipeline` compiles but
-  is not a fixed point; `matrix`/`stats`/`poly`/`sort`/
-  `moving` exceed the current IR subset (the IR pipeline
-  hangs on them — a latent Stage 0 bug; `runTacitJ` runs them
-  fine) and are skipped, not attempted.
+  fixed points. (At the time, `pipeline` compiled but was not a
+  fixed point, and `matrix`/`stats`/`poly`/`sort`/`moving`
+  exceeded the IR subset — both resolved by v0.21.)
 - **`make bootstrap`** — now runs `stage 0 -> 1 -> 2 -> 3`.
 - **`make ci`** — now includes `bootstrap`, so the combined
   gate is `test + verify + smoke-all + bootstrap`.

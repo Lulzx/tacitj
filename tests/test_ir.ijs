@@ -146,3 +146,36 @@ defProgSrc =. ('foo =: ' , defSrc) , LF , 'bar =: 2'
 j1 =. emitIr optWithEnv lowerIr semAnalyze parseProgram lex defProgSrc
 j2 =. emitIr optWithEnv lowerIr semAnalyze parseProgram lex j1
 check j1 ; j2 ; <'def block: round-trip is a fixed point'
+
+NB. --- 2-char verbs: ": , ,. , i. (added in v0.20) ----------
+
+NB. ": (format) unparses unquoted (not as a string).
+check (unparseIr irLit '":') ; '":' ; <'unparse: ": (format) unquoted'
+
+NB. ,. (stitch) unparses unquoted.
+check (unparseIr irLit ',.') ; ',.' ; <'unparse: ,. (stitch) unquoted'
+
+NB. i. (integers) unparses unquoted.
+check (unparseIr irLit 'i.') ; 'i.' ; <'unparse: i. (integers) unquoted'
+
+NB. e. (member) unparses unquoted.
+check (unparseIr irLit 'e.') ; 'e.' ; <'unparse: e. (member) unquoted'
+
+NB. A string that merely looks like a primitive still re-quotes
+NB. (via irStr, which tags the meta slot as a string).
+check (unparseIr (irStr '":')) ; (QUOTE , '":' , QUOTE) ; <'unparse: string ":" stays quoted'
+
+NB. --- Gerund ` and agenda @. and constant verbs (SPEC 2.1) -
+
+NB. @. (agenda) unparses unquoted.
+check (unparseIr irLit '@.') ; '@.' ; <'unparse: @. (agenda) unquoted'
+
+NB. ` (tie) unparses unquoted.
+check (unparseIr irLit '`') ; '`' ; <'unparse: ` (tie) unquoted'
+
+NB. Constant verbs n: unparse unquoted.
+check (unparseIr irLit '0:') ; '0:' ; <'unparse: 0: (constant verb) unquoted'
+check (unparseIr irLit '9:') ; '9:' ; <'unparse: 9: (constant verb) unquoted'
+
+NB. A string that merely looks like `0:` still re-quotes.
+check (unparseIr (irStr '0:')) ; (QUOTE , '0:' , QUOTE) ; <'unparse: string "0:" stays quoted'

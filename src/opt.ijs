@@ -434,7 +434,7 @@ optEnvPut =: 3 : 0
     NB. env is a 2-elem boxed list (names ; bindings)
     names =. 0 { env
     binds =. 1 { env
-    optEnv =: < (names , <name) , (binds , <binding)
+    optEnv =: < (names , <name) ; (binds , <binding)
   end.
   EMPTY
 )

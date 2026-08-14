@@ -215,3 +215,80 @@ stripped3 =. stripComments defWithComment
 check stripped3 ; defWithComment ; <'stripComments: def body comments preserved'
 
 
+
+NB. --- Direct definitions {{ }} (added in v0.20) ------------
+
+NB. A single-line {{ }} dfn lexes as NAME ASSIGN DEF EOF.
+dfnSrc =. 'double =: {{ y * 2 }}'
+toksDfn =. lex dfnSrc
+check (# toksDfn) ; 4 ; <'lex {{ }} dfn: 4 tokens (NAME ASSIGN DEF EOF)'
+check (tokType 2 { toksDfn) ; T_DEF ; <'lex {{ }} dfn: T_DEF at index 2'
+check (tokValue 2 { toksDfn) ; '{{ y * 2 }}' ; <'lex {{ }} dfn: value is the verbatim block'
+
+NB. A multi-line {{ }} dfn captures through the closing }}.
+dfnSrc2 =. 'f =: {{', LF, '  y + 1', LF, '}}'
+toksDfn2 =. lex dfnSrc2
+check (# toksDfn2) ; 4 ; <'lex multi-line {{ }} dfn: 4 tokens'
+check (tokType 2 { toksDfn2) ; T_DEF ; <'lex multi-line {{ }} dfn: T_DEF'
+check (tokValue 2 { toksDfn2) ; ('{{', LF, '  y + 1', LF, '}}') ; <'lex multi-line {{ }} dfn: verbatim block'
+
+NB. A {{ }} inside a string is data, not a dfn opener.
+dfnSrc3 =. 's =. ''{{ not a dfn }}'''
+toksDfn3 =. lex dfnSrc3
+check (tokType 2 { toksDfn3) ; T_STR ; <'lex: {{ }} inside string is data'
+
+NB. --- One-line explicit defs (added in v0.20) --------------
+
+NB. 3 : '...' lexes as NAME ASSIGN DEF EOF (verbatim, no parens).
+oneSrc =. 'f =: 3 : ''y + 1'''
+toksOne =. lex oneSrc
+check (# toksOne) ; 4 ; <'lex one-line def: 4 tokens (NAME ASSIGN DEF EOF)'
+check (tokType 2 { toksOne) ; T_DEF ; <'lex one-line def: T_DEF at index 2'
+check (tokValue 2 { toksOne) ; ('3 : ''y + 1''') ; <'lex one-line def: value is the verbatim def'
+
+NB. 4 : '...' (dyadic one-line def)
+oneSrc2 =. 'g =: 4 : ''x + y'''
+toksOne2 =. lex oneSrc2
+check (tokType 2 { toksOne2) ; T_DEF ; <'lex dyadic one-line def: T_DEF'
+
+NB. --- 2-char verbs: ": , ,. , i. (added in v0.20) ----------
+
+NB. ": (format) is a single T_VERB token.
+toksFmt =. lex '": 42'
+check (# toksFmt) ; 3 ; <'lex ":: 3 tokens'
+check (tokType 0 { toksFmt) ; T_VERB ; <'lex ":: T_VERB at index 0'
+check (tokValue 0 { toksFmt) ; '":' ; <'lex ":: value is ":"'
+
+NB. ,. (stitch) is a single T_VERB token.
+toksStitch =. lex 'a ,. b'
+check (tokType 1 { toksStitch) ; T_VERB ; <'lex ,.: T_VERB at index 1'
+check (tokValue 1 { toksStitch) ; ',.' ; <'lex ,.: value is ,.'
+
+NB. i. (integers) is a single T_VERB token.
+toksInt =. lex 'i. 5'
+check (tokType 0 { toksInt) ; T_VERB ; <'lex i.: T_VERB at index 0'
+check (tokValue 0 { toksInt) ; 'i.' ; <'lex i.: value is i.'
+
+
+NB. --- Gerund tie ` and agenda @. (added for SPEC 2.1) ------
+
+NB. Backtick ` (Tie) lexes as a single T_CONJ token.
+toksTie =. lex '''hello''`]'
+check (tokType 1 { toksTie) ; T_CONJ ; <'lex ` (tie): T_CONJ at index 1'
+
+NB. Agenda @. lexes as a single T_CONJ token (not @ + .).
+toksAg =. lex 'f @. c'
+check (tokType 1 { toksAg) ; T_CONJ ; <'lex @. (agenda): T_CONJ at index 1'
+check (tokValue 1 { toksAg) ; '@.' ; <'lex @. (agenda): value is @.'
+
+NB. Constant verbs n: lex as single T_VERB tokens.
+toksCv =. lex '0:`1:`2:'
+check (tokType 0 { toksCv) ; T_VERB ; <'lex 0:: T_VERB at index 0'
+check (tokValue 0 { toksCv) ; '0:' ; <'lex 0:: value is 0:'
+check (tokType 2 { toksCv) ; T_VERB ; <'lex 1:: T_VERB at index 2'
+check (tokValue 2 { toksCv) ; '1:' ; <'lex 1:: value is 1:'
+check (tokType 1 { toksCv) ; T_CONJ ; <'lex ` between constant verbs: T_CONJ at index 1'
+
+NB. A plain number is still a number (not a constant verb).
+toksN =. lex '42'
+check (tokType 0 { toksN) ; T_NUM ; <'lex 42: still T_NUM'

@@ -696,6 +696,7 @@ NB. unquoted) or whether it's a string of characters (quoted).
 prims1 =: PRIM_VERB , PRIM_ADV , PRIM_CONJ
 prims2 =: '*:' , '%:' , '^:' , '|:' , '<:' , '>:' , '~:' , '+:' , '-:'
 prims2 =: prims2 , '<.' , '>.' , '+.' , '-.' , CONJ_TWO_CHAR
+prims2 =: prims2 , '/:' , '\:' , '":' , ',.' , 'i.' , 'e.' , 'o.' , 'j.' , 'r.' , '{.' , '}.' , '@.' , '0:' , '1:' , '2:' , '3:' , '4:' , '5:' , '6:' , '7:' , '8:' , '9:'
 
 unparseIrLit =: 3 : 0
   'v meta' =. y

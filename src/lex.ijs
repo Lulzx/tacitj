@@ -32,9 +32,9 @@ NB. --- Character sets --------------------------------------
 ALPHA     =: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 NAME_CONT =: ALPHA , '0123456789_'
 DIGITS    =: '0123456789'
-PRIM_VERB =: '+-*%^=<>|&~;,$#?![]'
+PRIM_VERB =: '+-*%^=<>|&~;,$#?![]{}'
 PRIM_ADV  =: '/\~.:'
-PRIM_CONJ =: '@&^!'
+PRIM_CONJ =: '@&^!"`'
 
 NB. Two-char conjunctions: @: (atop with rank), &: (bond with rank),
 NB. ^: (power with rank). Same pattern as the two-char verbs.
@@ -423,7 +423,9 @@ defStartAt =: 3 : 0
     q =. >: q
   end.
   if. q >: lim do. 0 return. end.
-  (q { src) = '0'
+  NB. Accept both the block form (`3 : 0`) and the one-line
+  NB. string form (`3 : '...'`).
+  ((q { src) = '0') +. ((q { src) = QUOTE)
 )
 
 NB. readDefBlock: read an explicit-definition block.
@@ -449,6 +451,13 @@ readDefBlock =: 3 : 0
     t =. >: t
   end.
   if. t >: lim do. (lim - p) {. p }. src ; lim return. end.
+  NB. One-line form: `3 : '...'` — the RHS is a string literal.
+  NB. Capture the whole `3 : '...'` verbatim as the block.
+  if. (t { src) = QUOTE do.
+    endP =. readString (t ; src)
+    ((endP - p) {. p }. src) ; endP
+    return.
+  end.
   t =. >: t                        NB. skip '0'
   while. t < lim do.
     if. (t { src) = LF do. break. end.
@@ -479,6 +488,73 @@ readDefBlock =: 3 : 0
       (lim - p) {. p }. src ; lim
       return.
     end.
+  end.
+  (lim - p) {. p }. src ; lim
+)
+
+NB. dfnStartAt: does the source at position p start a direct
+NB. definition (`{{`)? y = (pos ; src). Result = 0 or 1.
+dfnStartAt =: 3 : 0
+  'p src' =. y
+  lim =. # src
+  if. (p + 1) >: lim do. 0 return. end.
+  ((p { src) = '{') *. ((p + 1) { src) = '{'
+)
+
+NB. readDfnBlock: read a direct-definition block (`{{ ... }}`).
+NB. y = (pos ; src), pos pointing at the first '{' of `{{`.
+NB. Result = 2-box: (rawBlock ; endPos).
+NB. The block runs from `{{` through the matching `}}`, tracking
+NB. nesting depth (a `{{` inside the body increments, a `}}`
+NB. decrements). String literals are skipped so `{{`/`}}` inside a
+NB. string are data, not delimiters. If no terminator is found, the
+NB. rest of the source is the block.
+readDfnBlock =: 3 : 0
+  'p src' =. y
+  lim =. # src
+  depth =. 1
+  i =. p + 2
+  while. i < lim do.
+    c =. i { src
+    if. c = QUOTE do.
+      NB. Skip a string literal (with doubled-quote escapes).
+      i =. >: i
+      while. i < lim do.
+        if. (i { src) = QUOTE do.
+          if. (i + 1) < lim do.
+            if. ((i + 1) { src) = QUOTE do.
+              i =. i + 2 continue.
+            end.
+          end.
+          i =. >: i
+          break.
+        end.
+        i =. >: i
+      end.
+      continue.
+    elseif. c = '{' do.
+      if. (i + 1) < lim do.
+        if. ((i + 1) { src) = '{' do.
+          depth =. >: depth
+          i =. i + 2
+          continue.
+        end.
+      end.
+    elseif. c = '}' do.
+      if. (i + 1) < lim do.
+        if. ((i + 1) { src) = '}' do.
+          depth =. <: depth
+          i =. i + 2
+          if. depth = 0 do.
+            NB. Block ends after the closing `}}`.
+            ((i - p) {. p }. src) ; i
+            return.
+          end.
+          continue.
+        end.
+      end.
+    end.
+    i =. >: i
   end.
   (lim - p) {. p }. src ; lim
 )
@@ -541,6 +617,14 @@ lex =: 3 : 0
     elseif. c e. (TAB , ' ' , CR) do.
       p =. >: p
     else.
+      NB. Direct-definition opener: capture the whole `{{ ... }}`
+      NB. block as a single T_DEF token.
+      if. dfnStartAt (p ; src) do.
+        'raw endP' =. readDfnBlock (p ; src)
+        toks =. toks , <((<T_DEF) ; <raw)
+        p =. endP
+        lineHasTok =. 1
+      else.
       NB. Explicit-definition opener: capture the whole block
       NB. (3 : 0 ... ) / 4 : 0 ... )) as a single T_DEF token.
       if. defStartAt (p ; src) do.
@@ -556,6 +640,7 @@ lex =: 3 : 0
         t0 =. tokType <tok
         if. t0 = T_LPAREN do. depth =. >: depth end.
         if. t0 = T_RPAREN do. depth =. <: depth end.
+      end.
       end.
     end.
   end.
@@ -605,17 +690,32 @@ lexOne =: 3 : 0
     NB. `^` is in PRIM_VERB and would otherwise be classified as
     NB. a 2-char verb (`^:` is a modifier in J, not a verb).
     ((<T_CONJ) ; <(c , ':')) ; (>: >: p)
-  elseif. (c e. ('*' , '%' , '^' , '|' , '<' , '>' , '~' , '<' , '>' , '+' , '-')) *. ((p + 1) < lim) *. ((p + 1) { src) = '.' do.
-    NB. Two-char verb with .: *., %., ^., |., <., >., ~., <., >., +., -.
-    NB. (square, root, log, reverse, increment, decrement, not-equal
-    NB. floor, ceiling, plus/minus). NB: '.' (dot) is also the J
-    NB. "do" adverb; with a 2-char verb prefix it becomes a verb.
+  elseif. (c = '@') *. ((p + 1) < lim) *. ((p + 1) { src) = '.' do.
+    NB. Two-char conjunction @. (agenda). Checked BEFORE the generic
+    NB. PRIM_CONJ branch so `@.` is one token (SPEC.md §2.1: agenda
+    NB. `u`m`v`). Otherwise `@` (conj) + `.` (adv) would split it.
+    ((<T_CONJ) ; <'@.') ; (>: >: p)
+  elseif. (c e. ('*' , '%' , '^' , '|' , '<' , '>' , '~' , '+' , '-' , ',' , 'i' , 'e' , 'o' , 'j' , 'r' , '{' , '}')) *. ((p + 1) < lim) *. ((p + 1) { src) = '.' do.
+    NB. Two-char verb with .: *., %., ^., |., <., >., ~., +., -., ,.,
+    NB. i., e., o., j., r., {., }.
+    NB. (square, root, log, reverse, increment, decrement, not-equal,
+    NB. plus/minus, stitch, integers, member, pi-times, imaginary,
+    NB. angle, head, behead). NB: '.' (dot) is also the J "do"
+    NB. adverb; with a 2-char verb prefix it becomes a verb.
     ((<T_VERB) ; <(c , '.')) ; (>: >: p)
-  elseif. (c e. ('*' , '%' , '^' , '|' , '<' , '>' , '~' , '+' , '-')) *. ((p + 1) < lim) *. ((p + 1) { src) = ':' do.
-    NB. Two-char verb with :: *:, %:, ^:, |:, <:, >:, ~:, +:, -:
-    NB. (square, root, log, reverse, increment, decrement, not-equal
-    NB. plus/minus). NB: ':' is a J modifier; with a 2-char verb
-    NB. prefix it becomes a verb (e.g. +: is increment).
+  elseif. (c e. ('*' , '%' , '^' , '|' , '<' , '>' , '~' , '+' , '-' , '/' , '\\' , '"')) *. ((p + 1) < lim) *. ((p + 1) { src) = ':' do.
+    NB. Two-char verb with :: *:, %:, ^:, |:, <:, >:, ~:, +:, -:,
+    NB. /:, \:, ":
+    NB. (square, root, log, reverse, increment, decrement, not-equal,
+    NB. plus/minus, grade-up, grade-down, format). NB: ':' is a J
+    NB. modifier; with a 2-char verb prefix it becomes a verb
+    NB. (e.g. +: is increment, ": is format).
+    ((<T_VERB) ; <(c , ':')) ; (>: >: p)
+  elseif. (c e. DIGITS) *. ((p + 1) < lim) *. ((p + 1) { src) = ':' do.
+    NB. Constant verb n: (e.g. 0:, 1:, 2:) — a single T_VERB token.
+    NB. J defines `n:` as "constant verb" returning n; these appear in
+    NB. gerunds/agenda (`0:`1:`2: @. cond`). Checked BEFORE the DIGITS
+    NB. branch so `0:` isn't split into number `0` + modifier `:`.
     ((<T_VERB) ; <(c , ':')) ; (>: >: p)
   elseif. c e. PRIM_VERB do.
     ((<T_VERB) ; <,c) ; (>: p)

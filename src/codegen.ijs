@@ -103,5 +103,4 @@ runCompile =: 3 : 0
   wrapped 1!:2 < tmpf
   0!:1 < tmpf
   r [ smoutput r
-  r [ smoutput r
 )

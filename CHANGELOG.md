@@ -4,6 +4,58 @@ All notable changes to TacitJ are recorded here. The format is
 loosely based on [Keep a Changelog](https://keepachangelog.com/),
 and the project does not yet follow SemVer.
 
+## [0.21] - 2026-08-14
+
+**SPEC §2.1 gerunds and agenda are now implemented; the IR pipeline
+handles the larger examples.** This closes the last documented
+language-subset gap in SPEC.md.
+
+### Added
+
+- **Gerund tie (`` ` ``) and agenda (`@.`)** (`src/lex.ijs`,
+  `src/ir.ijs`):
+  - The backtick tie (`` ` ``) and `@.` (agenda) lex as single
+    `T_CONJ` tokens (previously `` ` `` was `T_BAD` and `@.` split
+    into `@` + `.`).
+  - Constant verbs `0:`–`9:` lex as single `T_VERB` tokens
+    (previously `0:` split into number `0` + modifier `:`).
+  - `` ` ``, `@.` and `0:`–`9:` unparse unquoted, so gerund /
+    agenda programs round-trip as fixed points and execute.
+- **IR pipeline handles the larger examples**: `matrix`, `stats`,
+  `poly`, `sort`, `moving` now lex→parse→sem→lower→opt→emit and
+  round-trip as fixed points (SPEC §10 item 10; previously they
+  exceeded the IR subset and were skipped).
+
+### Fixed
+
+- SPEC.md appendix example 9.1 used `'hello'`]` (tie of a char
+  vector with a verb), which is a domain error in J; the example
+  now uses the valid boxed-gerund form `(<'hello')`]`.
+
+## [0.20] - 2026-08-14
+
+**Closed the remaining §4.7 gaps and implemented SPEC §4.3.**
+
+### Added
+
+- **`{{ }}` direct definitions** (`src/lex.ijs`): single-line and
+  multi-line dfns are captured as opaque `T_DEF` tokens (a `{{ }}`
+  inside a string is data, not a dfn opener).
+- **One-line explicit defs** (`3 : '...'` / `4 : '...'`) are
+  captured verbatim as `T_DEF` (no parenthesised-train emission).
+- **Two-char verbs** `":`, `,.`, `i.`, `e.`, `o.`, `j.`, `r.`,
+  `{.`, `}.`, `/:`, `\:` lex as single `T_VERB` tokens and unparse
+  unquoted.
+- **Semantic analysis** (`src/sem.ijs`): SPEC §4.3 shape/type
+  inference (`infer`), well-formedness (`semValidate`), constant
+  folding (`semFold`), and dead-code elimination (`semDce`).
+- **Exec-path fidelity**: the emitted (self-compiled) compiler's
+  `execIr`/`runTacitJ` path is exercised end-to-end
+  (`make selfhost-full` reports `exec-path fidelity: 1`).
+- **Per-program namespaces** (`src/eval.ijs`): `runTacitJ` executes
+  in a fresh locale and restores the caller's locale, so names do
+  not leak between programs.
+
 ## [0.19] - 2026-08-14
 
 **Stage 3 breakthrough: the compiler now compiles through itself.**
