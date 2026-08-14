@@ -9,7 +9,7 @@
 [![Stage](https://img.shields.io/badge/Stage-0-yellow.svg)](SPEC.md)
 [![GitHub stars](https://img.shields.io/github/stars/Lulzx/tacitj?style=social)](https://github.com/Lulzx/tacitj/stargazers)
 
-[Quick start](#-quick-start) · [Project layout](#-project-layout) · [Documentation](#-documentation) · [Contributing](#-contributing)
+[Quick start](#-quick-start) | [Project layout](#-project-layout) | [Documentation](#-documentation) | [Contributing](#-contributing)
 
 </div>
 
@@ -17,8 +17,8 @@
 
 ## What is TacitJ?
 
-**TacitJ** is a compiler for a curated subset of [J](https://www.jsoftware.com/) — the
-array language famous for its terse, point-free, tacit style. The compiler's own source is
+**TacitJ** is a compiler for a curated subset of [J](https://www.jsoftware.com/), the
+array language known for its terse, point-free, tacit style. The compiler's own source is
 written in that same tacit style, and the goal is for the compiler to compile itself (a
 *self-hosting* bootstrap).
 
@@ -29,7 +29,7 @@ writing less code makes the compiler smarter at parsing it.
 
 ## Why?
 
-J's tacit style — trains, hooks, forks, gerunds, compositions — is what makes it a
+J's tacit style (trains, hooks, forks, gerunds, compositions) is what makes it a
 point-free array language. But the language is large and idiosyncratic; the canonical
 interpreter is a closed-source commercial product.
 
@@ -123,16 +123,16 @@ tacitj/
 
 ## Documentation
 
-- **[`docs/language.md`](docs/language.md)** — the TacitJ language reference: verbs,
-  adverbs, conjunctions, forks and hooks.
-- **[`docs/examples.md`](docs/examples.md)** — walkthroughs of every example program.
-- **[`docs/architecture.md`](docs/architecture.md)** — the compiler pipeline and IR.
-- **[`docs/roadmap.md`](docs/roadmap.md)** — roadmap, bootstrap stages, Stage 0 subset,
+- **[`docs/language.md`](docs/language.md)**: the TacitJ language reference (verbs,
+  adverbs, conjunctions, forks and hooks).
+- **[`docs/examples.md`](docs/examples.md)**: walkthroughs of every example program.
+- **[`docs/architecture.md`](docs/architecture.md)**: the compiler pipeline and IR.
+- **[`docs/roadmap.md`](docs/roadmap.md)**: roadmap, bootstrap stages, Stage 0 subset,
   MDL / grammar induction, and the full release history.
-- **[`docs/design.md`](docs/design.md)** — architecture, decisions, trade-offs.
-- **[`SPEC.md`](SPEC.md)** — the full technical specification (BNF grammar, component
+- **[`docs/design.md`](docs/design.md)**: architecture, decisions, trade-offs.
+- **[`SPEC.md`](SPEC.md)**: the full technical specification (BNF grammar, component
   contracts, 5-stage bootstrap strategy, Solon/MDL integration).
-- **[`CHANGELOG.md`](CHANGELOG.md)** — release notes.
+- **[`CHANGELOG.md`](CHANGELOG.md)**: release notes.
 
 ---
 
@@ -145,7 +145,7 @@ This repo is in **early bootstrapping**. Two kinds of contributors are welcome:
 The codebase is **J 9.7 only**, no external dependencies. Edit freely, but:
 
 1. Read [`SPEC.md`](SPEC.md) for the language subset and architecture.
-2. Read [`src/tacitj.ijs`](src/tacitj.ijs) — it's the canonical composition order.
+2. Read [`src/tacitj.ijs`](src/tacitj.ijs), the canonical composition order.
 3. Run `make test` before sending a patch.
 4. Match the existing code style (J banner comments per file, boxed triples for AST nodes).
 
