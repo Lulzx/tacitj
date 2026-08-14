@@ -386,7 +386,7 @@ Documentation + example polish.
 
 ### Added
 
-- **`doc/design.md`** — new architecture / design-decisions
+- **`docs/design.md`** — new architecture / design-decisions
   document. Covers:
   - Pipeline at a glance (and why the composition is one line).
   - Why the IR is a boxed triple (`(<op ; <args ; <meta)`).
