@@ -18,34 +18,23 @@
 ## What is TacitJ?
 
 **TacitJ** is a compiler for a curated subset of [J](https://www.jsoftware.com/) — the
-array-language famous for its terse, point-free, tacit style. The compiler's *own source*
-is written in that same tacit style, and the goal is for the compiler to eventually compile
-itself (a *self-hosting* bootstrap).
+array language famous for its terse, point-free, tacit style. The compiler's own source is
+written in that same tacit style, and the goal is for the compiler to compile itself (a
+*self-hosting* bootstrap).
 
-> **Status: Stages 0–3 implemented (Stage 3 advanced), IR pipeline + codegen +
-> bootstrap live.** The full `compile` pipeline
-> (`lex → parse → sem → lowerIr → opt → execIr`) runs end-to-end. **Since v0.19
-> the compiler compiles through itself**: every `src/*.ijs` file round-trips as a
-> syntactic fixed point (9/9), and the emitted (self-compiled) modules reproduce
-> the Stage 0 output contract (`make selfhost-full`). v0.20 added exec-path
-> fidelity and per-program namespaces; **v0.21 closes the last documented
-> language-subset gap** (gerunds and agenda, SPEC §2.1) and makes every example
-> in `examples/` a round-trip fixed point. **225 tests pass, 0 failed.**
-
-The interesting twist: the optimiser is designed to integrate **MDL-inspired compression**
-(grammar induction over J expressions), so writing *less* code actually makes the
-compiler *smarter* about the source it's parsing.
+The optimiser uses MDL-inspired compression (grammar induction over J expressions):
+writing less code makes the compiler smarter at parsing it.
 
 ---
 
 ## Why?
 
 J's tacit style — trains, hooks, forks, gerunds, compositions — is what makes it a
-*point-free array-language powerhouse*. But the language is large and idiosyncratic;
-the canonical interpreter is a closed-source commercial product.
+point-free array language. But the language is large and idiosyncratic; the canonical
+interpreter is a closed-source commercial product.
 
-TacitJ asks: **what is the smallest subset of J you can build a real, useful compiler for,
-while keeping the result fun to write?**
+TacitJ asks: what is the smallest subset of J you can build a real, useful compiler for,
+while keeping the result fun to write?
 
 | Constraint | Consequence |
 |---|---|
@@ -170,8 +159,7 @@ AST node shape without updating all consumers, don't commit until asked.)
 
 ## Acknowledgments
 
-- **[JSoftware](https://www.jsoftware.com/)** for the J language and interpreter — TacitJ
-  wouldn't exist without `J` and the decades of design that went into it.
+- **[JSoftware](https://www.jsoftware.com/)** for the J language and interpreter.
 - **Kenneth Iverson** for inventing APL and J.
 - The broader **array-programming** community.
 - The **MDL / Solomonoff induction** tradition for the compression-as-intelligence idea
